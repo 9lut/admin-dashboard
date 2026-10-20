@@ -55,7 +55,7 @@ export function MultiSelect({ options, value, onChange, placeholder = "เลื
     return (
         <div className="relative w-full" ref={wrapperRef}>
             <div 
-                className={`min-h-[44px] w-full bg-slate-50 dark:bg-slate-800/50 border ${isOpen ? 'border-sky-500 ring-2 ring-sky-500/20' : 'border-slate-200 dark:border-slate-700'} rounded-xl px-3 py-1.5 flex items-center justify-between cursor-text transition-all`}
+                className={`min-h-[44px] w-full bg-surface-2 border ${isOpen ? 'border-sky-500 ring-2 ring-sky-500/20' : 'border-line'} rounded-xl px-3 py-1.5 flex items-center justify-between cursor-text transition-all`}
                 onClick={() => setIsOpen(true)}
             >
                 <div className="flex flex-wrap gap-1.5 items-center flex-1">
@@ -96,11 +96,11 @@ export function MultiSelect({ options, value, onChange, placeholder = "เลื
             </div>
 
             {isOpen && (
-                <div className="absolute top-full left-0 right-0 mt-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-lg z-50 max-h-60 overflow-y-auto animate-in fade-in slide-in-from-top-2 duration-200">
+                <div className="absolute top-full left-0 right-0 mt-2 bg-surface border border-line rounded-xl shadow-lg z-50 max-h-60 overflow-y-auto animate-in fade-in slide-in-from-top-2 duration-200">
                     {filteredOptions.length === 0 ? (
                         <div className="px-4 py-3 text-sm text-slate-500 text-center">
                             {searchTerm ? (
-                                <span>กด <kbd className="bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded text-xs">Enter</kbd> เพื่อเพิ่ม "{searchTerm}"</span>
+                                <span>กด <kbd className="bg-surface-2 px-2 py-0.5 rounded text-xs">Enter</kbd> เพื่อเพิ่ม "{searchTerm}"</span>
                             ) : "พิมพ์เพื่อเพิ่มฝ่ายใหม่..."}
                         </div>
                     ) : (
@@ -114,7 +114,7 @@ export function MultiSelect({ options, value, onChange, placeholder = "เลื
                                         className={`flex items-center justify-between px-3 py-2 rounded-lg cursor-pointer text-sm font-medium transition-colors ${
                                             isSelected 
                                             ? 'bg-sky-50 text-sky-700 dark:bg-sky-900/20 dark:text-sky-400' 
-                                            : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
+                                            : 'text-fg-2 hover:bg-slate-100 dark:hover:bg-slate-800'
                                         }`}
                                     >
                                         <span>{opt}</span>

@@ -4,6 +4,7 @@ import { verifySession, type SessionUser } from './firebase';
 import { Unauthorized, Forbidden } from '../http/response';
 import { accountRepo } from '../repositories/accountRepo';
 import { permissionRepo } from '../repositories/permissionRepo';
+import { allowedMenus } from '../access/menus';
 
 // `sub` is kept as an alias of `uid` so existing call sites keep working.
 export type AuthUser = SessionUser & { sub: string };
@@ -29,16 +30,13 @@ export async function requireRole(...roles: string[]): Promise<AuthUser> {
     return user;
 }
 
-/** Enforce the same department menu permission on the server as in the UI. */
+/** Enforce the same department menu permission on the server as in the UI (lib/access/menus.ts). */
 export async function requireMenuPermission(href: string): Promise<AuthUser> {
     const user = await requireAuth();
     if (user.role === Role.SUPERADMIN) return user;
-    const account = await accountRepo.findOne(user.uid);
-    const settings = await permissionRepo.getSettings();
-    const allowed = (account.departments as string[] | undefined ?? []).some((department) =>
-        settings.departments[department]?.includes(href),
-    );
-    if (!allowed) throw Forbidden('Insufficient menu permissions');
+    const [account, settings] = await Promise.all([accountRepo.findOne(user.uid), permissionRepo.getSettings()]);
+    const allowed = allowedMenus(user.role, account.departments as string[] | undefined, settings.departments);
+    if (!allowed.has(href)) throw Forbidden('Insufficient menu permissions');
     return user;
 }
 

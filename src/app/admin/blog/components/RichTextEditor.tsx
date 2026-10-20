@@ -100,9 +100,9 @@ export default function RichTextEditor({ content = "", onChange, placeholder = "
     }
 
     return (
-        <div className="border border-slate-200 dark:border-slate-700 rounded-xl overflow-hidden bg-white dark:bg-slate-950">
+        <div className="border border-line rounded-xl overflow-hidden bg-surface">
             {/* Toolbar */}
-            <div className="border-b border-slate-200 dark:border-slate-700 p-2 bg-slate-50 dark:bg-slate-900 flex flex-wrap gap-1">
+            <div className="border-b border-line p-2 bg-surface-2 flex flex-wrap gap-1">
                 {/* Text Formatting */}
                 <button
                     type="button"
@@ -257,7 +257,7 @@ export default function RichTextEditor({ content = "", onChange, placeholder = "
 
             {/* Link Dialog */}
             {showLinkDialog && (
-                <div className="border-b border-slate-200 dark:border-slate-700 px-4 py-3 bg-slate-50/80 dark:bg-slate-900/80 backdrop-blur-sm">
+                <div className="border-b border-line px-4 py-3 bg-slate-50/80 dark:bg-slate-900/80 backdrop-blur-sm">
                     <div className="flex items-center gap-2 max-w-lg">
                         <input
                             ref={linkInputRef}
@@ -269,7 +269,7 @@ export default function RichTextEditor({ content = "", onChange, placeholder = "
                                 if (e.key === 'Escape') cancelLink();
                             }}
                             placeholder="https://example.com"
-                            className="flex-1 px-3 py-1.5 text-sm bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-600 rounded-lg outline-none focus:ring-2 focus:ring-sky-500 focus:border-sky-500 transition-all"
+                            className="flex-1 px-3 py-1.5 text-sm bg-surface border border-slate-300 dark:border-slate-600 rounded-lg outline-none focus:ring-2 focus:ring-sky-500 focus:border-sky-500 transition-all"
                         />
                         <button
                             type="button"

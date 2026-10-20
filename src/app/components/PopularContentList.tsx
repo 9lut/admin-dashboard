@@ -1,6 +1,7 @@
 "use client";
 import Image from 'next/image';
 import { Eye } from 'lucide-react';
+import { Illustration } from "@/app/components/brand/Illustration";
 
 interface Content {
     _id: string;
@@ -35,22 +36,22 @@ export const PopularContentList = ({ content }: PopularContentListProps) => {
                                 className="object-cover transition-transform duration-500 group-hover:scale-110"
                             />
                         ) : (
-                            <div className="h-full w-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center text-slate-400">
-                                No Img
+                            <div className="grid h-full w-full place-items-center bg-primary-soft">
+                                <Illustration name="empty" className="size-10" />
                             </div>
                         )}
                     </div>
                     <div className="flex-1 min-w-0 py-1">
-                        <h4 className="font-bold text-slate-900 dark:text-white truncate text-sm group-hover:text-blue-500 transition-colors" title={item.name_th}>
+                        <h4 className="font-bold text-fg truncate text-sm group-hover:text-blue-500 transition-colors" title={item.name_th}>
                             {item.name_th || "ไม่มีชื่อ"}
                         </h4>
                         {item.name_eng && item.name_eng.trim() !== item.name_th?.trim() && (
-                            <p className="mt-0.5 line-clamp-1 text-xs text-slate-500 dark:text-slate-400">
+                            <p className="mt-0.5 line-clamp-1 text-xs text-muted">
                                 {item.name_eng}
                             </p>
                         )}
                     </div>
-                    <div className="flex flex-col items-center justify-center min-w-[3rem] px-2 py-1 rounded-md bg-white dark:bg-slate-950 group-hover:bg-blue-50 dark:group-hover:bg-blue-900/20 transition-colors">
+                    <div className="flex flex-col items-center justify-center min-w-[3rem] px-2 py-1 rounded-md bg-surface group-hover:bg-blue-50 dark:group-hover:bg-blue-900/20 transition-colors">
                         <Eye size={14} className="text-blue-600 dark:text-blue-400 mb-0.5" />
                         <span className="text-xs font-bold text-blue-600 dark:text-blue-400">
                             {(item.views ?? 0) > 999 ? `${((item.views ?? 0) / 1000).toFixed(1)}k` : (item.views ?? 0)}
@@ -59,8 +60,9 @@ export const PopularContentList = ({ content }: PopularContentListProps) => {
                 </div>
             ))}
             {content.length === 0 && (
-                <div className="flex flex-col items-center justify-center py-12 text-slate-400 bg-slate-50/50 dark:bg-slate-900/30 rounded-xl border border-dashed border-slate-200 dark:border-slate-800">
-                    <p className="text-sm">No popular content available</p>
+                <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-line py-8 text-center">
+                    <Illustration name="empty" className="size-16" />
+                    <p className="mt-2 text-sm text-muted">ยังไม่มีข้อมูลยอดนิยม</p>
                 </div>
             )}
         </div>

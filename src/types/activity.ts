@@ -13,6 +13,8 @@ export interface Activity {
     end_date: string;
     feedbacks?: string[];
     favorite: boolean;
+    status?: string | null;
+    publishAt?: string | null;
     createdAt?: string;
     updatedAt?: string;
     __v?: number;
@@ -25,7 +27,13 @@ export interface ActivityListItem {
     location: string;
     description: string;
     favorite: boolean;
-    images: string; // List API returns single string
+    images: string | null; // List API returns single string
+    slug?: string;
+    status?: string | null;
+    publishAt?: string | null;
+    start_date?: string | null;
+    end_date?: string | null;
+    createdAt?: string | null;
 }
 
 export interface ActivityResponse<T> {

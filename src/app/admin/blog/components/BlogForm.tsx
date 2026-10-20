@@ -310,7 +310,7 @@ export default function BlogForm({
 
       <form
         onSubmit={handleSubmit}
-        className="w-full space-y-4 md:space-y-6 pb-32"
+        className="w-full space-y-4 md:space-y-6"
       >
         {/* Autosave Alert */}
         {hasDraft && (
@@ -332,16 +332,16 @@ export default function BlogForm({
         )}
 
         {/* Header - Mobile Optimized */}
-        <div className="mt-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-slate-50/95 dark:bg-slate-900/95 backdrop-blur-sm pb-3 md:pb-4 border-b border-slate-200 dark:border-slate-800 -mx-4 md:-mx-6 px-4 md:px-6">
+        <div className="mb-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b border-line pb-5">
           <div className="flex items-center gap-3 w-full sm:w-auto">
             <Link
               href="/admin/blog/content"
-              className="p-2 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-full transition-colors flex-shrink-0"
+              className="grid size-10 shrink-0 place-items-center rounded-xl text-muted transition-colors hover:bg-primary-soft hover:text-primary" aria-label="ย้อนกลับ"
             >
               <ChevronLeft size={20} />
             </Link>
             <div className="min-w-0 flex-1 ">
-              <h1 className="text-lg md:text-xl font-bold text-slate-800 dark:text-white truncate">
+              <h1 className="truncate text-xl font-bold tracking-tight text-fg sm:text-2xl">
                 {mode === "create" ? "สร้างบทความใหม่" : "แก้ไขบทความ"}
               </h1>
               <p className="text-xs text-slate-500 hidden sm:block">
@@ -352,27 +352,14 @@ export default function BlogForm({
             </div>
           </div>
           <div className="flex gap-2 w-full sm:w-auto">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => setShowPreview(true)}
-              className="flex-1 sm:flex-none gap-2"
-            >
-              <Eye size={18} />
-              <span>Preview</span>
-            </Button>
-            <Button
-              type="button"
-              onClick={onCancel}
-              className="flex-1 sm:flex-none px-4 py-2 text-center text-slate-600 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-lg md:rounded-xl font-bold text-sm transition-colors"
-            >
+            <button type="button" onClick={() => setShowPreview(true)} className="btn-secondary flex-1 sm:flex-none">
+              <Eye size={16} />
+              <span>ดูตัวอย่าง</span>
+            </button>
+            <button type="button" onClick={onCancel} className="btn-ghost flex-1 sm:flex-none">
               ยกเลิก
-            </Button>
-            <Button
-              type="submit"
-              disabled={loading}
-              className="flex-1 sm:flex-none px-4 md:px-6 py-2 bg-sky-500 text-white rounded-lg md:rounded-xl font-bold text-sm hover:bg-sky-600 transition-colors shadow-lg shadow-sky-500/20 flex items-center justify-center gap-2 disabled:opacity-50"
-            >
+            </button>
+            <button type="submit" disabled={loading} className="btn-primary flex-1 sm:flex-none">
               {loading ? (
                 <Loader2 className="animate-spin" size={18} />
               ) : (
@@ -381,7 +368,7 @@ export default function BlogForm({
               <span>
                 {mode === "create" ? "บันทึกบทความ" : "บันทึกการแก้ไข"}
               </span>
-            </Button>
+            </button>
           </div>
         </div>
 
@@ -390,8 +377,8 @@ export default function BlogForm({
           {/* Left Column: Main Content (Desktop 2/3 width) */}
           <div className="lg:col-span-2 space-y-4 md:space-y-6">
             {/* Title */}
-            <div className="bg-white dark:bg-slate-950 p-4 md:p-6 rounded-xl md:rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
-              <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-2">
+            <div className="bg-surface p-4 md:p-6 rounded-xl md:rounded-2xl border border-line shadow-sm">
+              <label className="block text-sm font-bold text-fg-2 mb-2">
                 หัวข้อบทความ *
               </label>
               <input
@@ -399,15 +386,15 @@ export default function BlogForm({
                 value={title}
                 onChange={(e) => handleTitleChange(e.target.value)}
                 placeholder="ใส่หัวข้อบทความที่น่าสนใจ..."
-                className="w-full text-lg md:text-xl font-bold px-4 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-sky-500 transition-all placeholder:font-normal"
+                className="w-full text-lg md:text-xl font-bold px-4 py-3 bg-surface-2 border border-line rounded-xl outline-none focus:ring-2 focus:ring-sky-500 transition-all placeholder:font-normal"
                 required
               />
             </div>
 
             {/* Slug Field */}
-            <div className="bg-white dark:bg-slate-950 p-4 md:p-6 rounded-xl md:rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
+            <div className="bg-surface p-4 md:p-6 rounded-xl md:rounded-2xl border border-line shadow-sm">
               <div className="flex items-center justify-between mb-2">
-                <label className="block text-sm font-bold text-slate-700 dark:text-slate-300">
+                <label className="block text-sm font-bold text-fg-2">
                   Slug (URL) *
                   <span className="ml-2 text-xs font-normal text-slate-400">
                     {mode === "create"
@@ -438,7 +425,7 @@ export default function BlogForm({
                 value={slug}
                 onChange={(e) => handleSlugChange(e.target.value)}
                 placeholder="my-blog-post-slug"
-                className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-sky-500 transition-all font-mono text-sm"
+                className="field font-mono"
                 required
               />
               <p className="flex items-center gap-1 mt-2 text-xs text-slate-400">
@@ -458,12 +445,12 @@ export default function BlogForm({
           {/* Right Column: Settings & Metadata (Desktop 1/3 width) */}
           <div className="space-y-4 md:space-y-6">
             {/* Cover Image */}
-            <div className="bg-white dark:bg-slate-950 p-4 md:p-5 rounded-xl md:rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
-              <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-3">
+            <div className="bg-surface p-4 md:p-5 rounded-xl md:rounded-2xl border border-line shadow-sm">
+              <label className="block text-sm font-bold text-fg-2 mb-3">
                 รูปปก (Cover Image)
               </label>
               {coverImage ? (
-                <div className="relative aspect-video rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700 group">
+                <div className="relative aspect-video rounded-xl overflow-hidden border border-line group">
                   <Image
                     src={coverImage}
                     alt="Cover"
@@ -484,7 +471,7 @@ export default function BlogForm({
                   </div>
                 </div>
               ) : (
-                <div className="w-full aspect-video border-2 border-dashed border-slate-300 dark:border-slate-700 rounded-xl flex flex-col items-center justify-center text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-900/50 transition-colors relative cursor-pointer">
+                <div className="w-full aspect-video border-2 border-dashed border-slate-300 dark:border-slate-700 rounded-xl flex flex-col items-center justify-center text-slate-400 hover:bg-surface-2 transition-colors relative cursor-pointer">
                   {isUploading ? (
                     <Loader2 className="animate-spin text-sky-500" size={32} />
                   ) : (
@@ -512,10 +499,10 @@ export default function BlogForm({
             </div>
 
             {/* Settings Card */}
-            <div className="bg-white dark:bg-slate-950 p-4 md:p-5 rounded-xl md:rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm space-y-4">
+            <div className="bg-surface p-4 md:p-5 rounded-xl md:rounded-2xl border border-line shadow-sm space-y-4">
               {/* Views (Edit mode only) */}
               {mode === "edit" && initialData?.views !== undefined && (
-                <div className="flex items-center justify-between py-2 px-3 bg-slate-50 dark:bg-slate-900 rounded-lg">
+                <div className="flex items-center justify-between py-2 px-3 bg-surface-2 rounded-lg">
                   <div className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-400">
                     <Eye size={16} className="text-sky-500" />
                     <span className="font-medium">ยอดเข้าชม</span>
@@ -528,7 +515,7 @@ export default function BlogForm({
 
               {/* Status Toggle */}
               <div>
-                <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-2">
+                <label className="block text-sm font-bold text-fg-2 mb-2">
                   สถานะ
                 </label>
                 <div className="flex gap-2">
@@ -538,7 +525,7 @@ export default function BlogForm({
                     className={`flex-1 px-3 py-2 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-2 ${
                       status === "draft"
                         ? "bg-amber-100 text-amber-700 border-2 border-amber-400 dark:bg-amber-900/30 dark:text-amber-400 dark:border-amber-600"
-                        : "bg-slate-50 text-slate-500 border-2 border-transparent hover:bg-slate-100 dark:bg-slate-900 dark:text-slate-400"
+                        : "bg-slate-50 text-slate-500 border-2 border-transparent hover:bg-surface-2 dark:text-slate-400"
                     }`}
                   >
                     <PencilOff size={16} />
@@ -550,7 +537,7 @@ export default function BlogForm({
                     className={`flex-1 px-3 py-2 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-2 ${
                       status === "published"
                         ? "bg-emerald-100 text-emerald-700 border-2 border-emerald-400 dark:bg-emerald-900/30 dark:text-emerald-400 dark:border-emerald-600"
-                        : "bg-slate-50 text-slate-500 border-2 border-transparent hover:bg-slate-100 dark:bg-slate-900 dark:text-slate-400"
+                        : "bg-slate-50 text-slate-500 border-2 border-transparent hover:bg-surface-2 dark:text-slate-400"
                     }`}
                   >
                     <Globe size={16} />
@@ -566,7 +553,7 @@ export default function BlogForm({
 
               {/* Category */}
               <div>
-                <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-2">
+                <label className="block text-sm font-bold text-fg-2 mb-2">
                   หมวดหมู่ *
                 </label>
                 <GroupSelector
@@ -578,8 +565,8 @@ export default function BlogForm({
               </div>
 
               {/* Series */}
-              <div className="space-y-3 p-4 bg-slate-50 dark:bg-slate-900/50 rounded-xl border border-slate-200 dark:border-slate-800">
-                <label className="block text-sm font-bold text-slate-700 dark:text-slate-300">
+              <div className="space-y-3 p-4 bg-surface-2 rounded-xl border border-line">
+                <label className="block text-sm font-bold text-fg-2">
                   ซีรีส์บทความ (Series){" "}
                   <span className="text-xs font-normal text-slate-400 ml-1">
                     (ทางเลือก)
@@ -592,7 +579,7 @@ export default function BlogForm({
                       value={seriesName}
                       onChange={(e) => setSeriesName(e.target.value)}
                       placeholder="ชื่อซีรีส์ เช่น ซีรีส์อัตเตาฮีด"
-                      className="w-full px-3 py-2 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-lg outline-none focus:ring-2 focus:ring-sky-500 text-sm"
+                      className="field"
                     />
                   </div>
                   <div className="w-24">
@@ -606,7 +593,7 @@ export default function BlogForm({
                         )
                       }
                       placeholder="ตอนที่"
-                      className="w-full px-3 py-2 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-lg outline-none focus:ring-2 focus:ring-sky-500 text-sm text-center"
+                      className="field text-center"
                     />
                   </div>
                 </div>
@@ -614,7 +601,7 @@ export default function BlogForm({
 
               {/* Reference URL */}
               <div>
-                <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-2">
+                <label className="block text-sm font-bold text-fg-2 mb-2">
                   ลิงก์อ้างอิงต้นฉบับ (Reference URL){" "}
                   <span className="text-xs font-normal text-slate-400 ml-1">
                     (ทางเลือก)
@@ -625,27 +612,27 @@ export default function BlogForm({
                   value={referenceUrl}
                   onChange={(e) => setReferenceUrl(e.target.value)}
                   placeholder="เช่น https://www.facebook.com/..."
-                  className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-sky-500 text-sm"
+                  className="field"
                 />
               </div>
 
               {/* Description */}
               <div>
-                <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-2">
+                <label className="block text-sm font-bold text-fg-2 mb-2">
                   คำอธิบายย่อ
                 </label>
                 <textarea
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
                   rows={3}
-                  className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-sky-500 text-sm resize-none"
+                  className="field resize-none"
                   placeholder="คำโปรยสั้นๆ..."
                 />
               </div>
 
               {/* Tags */}
               <div>
-                <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-2">
+                <label className="block text-sm font-bold text-fg-2 mb-2">
                   Tags
                 </label>
                 <TagInput

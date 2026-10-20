@@ -1,6 +1,7 @@
 import 'server-only';
 import { uploadFile } from '../storage/r2';
 import type { PrayerRoomFields } from '../repositories/prayerRoomRepo';
+import { readImageUrls } from '../http/content';
 
 export type ParsedPrayerRoom = {
     fields: PrayerRoomFields;
@@ -95,6 +96,7 @@ export async function parsePrayerRoom(req: Request): Promise<ParsedPrayerRoom> {
         const files = form.getAll('images').filter((f): f is File => f instanceof File);
         const newImages: string[] = [];
         for (const file of files) newImages.push(await uploadFile(file));
+        newImages.push(...readImageUrls(raw.image_urls as string | undefined));
         return { ...build(raw), newImages };
     }
 

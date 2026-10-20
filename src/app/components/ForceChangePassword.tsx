@@ -74,10 +74,10 @@ export default function ForceChangePassword({ user }: { user: User }) {
                     </div>
 
                     <h2 className="mt-6 text-xl font-black text-sky-500 dark:text-sky-400 tracking-tight">
-                        ยินดีต้อนรับ, <span className="text-slate-900 dark:text-white">{user.firstName}</span>
+                        ยินดีต้อนรับ, <span className="text-fg">{user.firstName}</span>
                     </h2>
 
-                    <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
+                    <p className="mt-2 text-sm text-muted">
                         เพื่อความปลอดภัย กรุณาตั้งรหัสผ่านใหม่ของคุณ<br/>เพื่อเข้าใช้งานระบบ
                     </p>
                 </div>
@@ -96,7 +96,7 @@ export default function ForceChangePassword({ user }: { user: User }) {
                                 value={newPassword}
                                 onChange={(e) => setNewPassword(e.target.value)}
                                 className="w-full rounded-xl border border-sky-200 dark:border-slate-800
-                                    px-4 py-3 pr-10 text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500
+                                    px-4 py-3 pr-10 text-fg placeholder-slate-400 dark:placeholder-slate-500
                                     dark:bg-slate-950
                                     focus:border-sky-500 focus:ring-2 focus:ring-sky-400
                                     disabled:bg-slate-100 disabled:text-slate-400 dark:disabled:bg-slate-900 dark:disabled:text-slate-500
@@ -123,7 +123,7 @@ export default function ForceChangePassword({ user }: { user: User }) {
                                 value={confirmPassword}
                                 onChange={(e) => setConfirmPassword(e.target.value)}
                                 className="w-full rounded-xl border border-sky-200 dark:border-slate-800
-                                    px-4 py-3 pr-10 text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500
+                                    px-4 py-3 pr-10 text-fg placeholder-slate-400 dark:placeholder-slate-500
                                     dark:bg-slate-950
                                     focus:border-sky-500 focus:ring-2 focus:ring-sky-400
                                     disabled:bg-slate-100 disabled:text-slate-400 dark:disabled:bg-slate-900 dark:disabled:text-slate-500

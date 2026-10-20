@@ -7,12 +7,12 @@ import { ApiEnvelope, unwrapResponse } from '@/lib/axios/types';
 
 export const activityService = {
     getAll: async () => {
-        const response = await api.get<ApiEnvelope<ActivityListItem[]>>('/activities/');
+        const response = await api.get<ApiEnvelope<ActivityListItem[]>>('/activities/?admin=1');
         return unwrapResponse(response);
     },
 
     getById: async (id: string) => {
-        const response = await api.get<ApiEnvelope<Activity>>(`/activities/${id}`);
+        const response = await api.get<ApiEnvelope<Activity>>(`/activities/${id}?admin=1`);
         return unwrapResponse(response);
     },
 

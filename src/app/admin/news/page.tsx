@@ -1,429 +1,180 @@
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
-import {
-  Plus,
-  Search,
-  Edit2,
-  Trash2,
-  Calendar,
-  Link as LinkIcon,
-  Loader2,
-  Filter,
-  X,
-  CheckSquare,
-  Square,
-} from "lucide-react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { CalendarDays, ImageIcon } from "lucide-react";
 import { newsService } from "@/services/newsService";
-import { News } from "@/types/news";
-import Image from "next/image";
-import { useRouter } from "next/navigation";
-import Link from "next/link";
-
+import type { News } from "@/types/news";
 import DeleteModal from "@/app/components/ui/DeleteModal";
-import { Pagination, PaginationInfo } from "@/app/components/ui/Pagination";
-import { GridSkeleton } from "@/app/components/ui/GridSkeleton";
-import { FilterBar, FilterSelect } from "@/app/components/ui/FilterBar";
+import { Pagination } from "@/app/components/ui/Pagination";
 import { PageHeader } from "@/app/components/ui/PageHeader";
-import { Button } from "@/app/components/ui/button";
+import { ListToolbar, ToolbarSelect } from "@/app/components/ui/ListToolbar";
+import { EmptyState, Section } from "@/app/components/ui/kit";
+import { BulkBar, CARD_GRID, CardGridSkeleton, ContentCard, usePaged, useSelection } from "@/app/components/ui/list";
+import { MONTH_OPTIONS, fmtShort as fmtDate, includesAll, matchMonthYear, toTime, yearOptions } from "@/lib/format";
+import { handleApiError } from "@/lib/axios";
+import { publishState } from "@/lib/content/publish";
+import { StateBadge } from "@/app/components/content/StateBadge";
+import { toastUtils } from "@/lib/toast";
+import { batchDelete } from "@/lib/api/batch";
 
-const MONTHS = [
-  { value: "", label: "ทุกเดือน" },
-  { value: "01", label: "มกราคม" },
-  { value: "02", label: "กุมภาพันธ์" },
-  { value: "03", label: "มีนาคม" },
-  { value: "04", label: "เมษายน" },
-  { value: "05", label: "พฤษภาคม" },
-  { value: "06", label: "มิถุนายน" },
-  { value: "07", label: "กรกฎาคม" },
-  { value: "08", label: "สิงหาคม" },
-  { value: "09", label: "กันยายน" },
-  { value: "10", label: "ตุลาคม" },
-  { value: "11", label: "พฤศจิกายน" },
-  { value: "12", label: "ธันวาคม" },
+const SORTS = [
+    { value: "date-desc", label: "วันที่ข่าว ใหม่ → เก่า" },
+    { value: "date-asc", label: "วันที่ข่าว เก่า → ใหม่" },
+    { value: "created-desc", label: "เพิ่มล่าสุด" },
+    { value: "name-asc", label: "ชื่อ ก → ฮ" },
 ];
 
 export default function NewsPage() {
-  const [news, setNews] = useState<News[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
-  const [refreshKey, setRefreshKey] = useState(0);
+    const [news, setNews] = useState<News[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState("");
 
-  const [searchTerm, setSearchTerm] = useState("");
-  const [selectedMonth, setSelectedMonth] = useState("");
-  const [selectedYear, setSelectedYear] = useState("");
-  const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage, setItemsPerPage] = useState(12);
+    const [search, setSearch] = useState("");
+    const [month, setMonth] = useState("");
+    const [year, setYear] = useState("");
+    const [image, setImage] = useState("");
+    const [state, setState] = useState("");
+    const [now] = useState(() => Date.now());
+    const [sort, setSort] = useState("date-desc");
+    const [page, setPage] = useState(1);
+    const [perPage, setPerPage] = useState(20);
 
-  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
-  const [newsToDelete, setNewsToDelete] = useState<News | null>(null);
-  const [isDeleting, setIsDeleting] = useState(false);
+    const sel = useSelection();
+    const [toDelete, setToDelete] = useState<News | "bulk" | null>(null);
+    const [deleting, setDeleting] = useState(false);
 
-  // Multi-select state
-  const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set());
-  const [isBulkDeleting, setIsBulkDeleting] = useState(false);
-  const [isBulkDeleteModalOpen, setIsBulkDeleteModalOpen] = useState(false);
+    const load = useCallback(async () => {
+        setLoading(true);
+        setError("");
+        try {
+            setNews(await newsService.getAll());
+        } catch (e) {
+            setError(handleApiError(e));
+        } finally {
+            setLoading(false);
+        }
+    }, []);
+    useEffect(() => {
+        void load();
+    }, [load]);
+    useEffect(() => setPage(1), [search, month, year, image, sort, perPage, state]);
 
-  const years = useMemo(() => {
-    const currentYear = new Date().getFullYear();
-    return Array.from({ length: 5 }, (_, i) => {
-      const y = currentYear - i;
-      return { value: y.toString(), label: (y + 543).toString() };
-    });
-  }, []);
+    const years = useMemo(() => yearOptions(news.map((n) => n.date || n.createdAt)), [news]);
+    const filtered = useMemo(() => {
+        const out = news.filter(
+            (n) =>
+                (!search || includesAll([n.name, n.description], search)) &&
+                matchMonthYear(n.date || n.createdAt, month, year) &&
+                (!image || (image === "with" ? n.images?.length > 0 : !n.images?.length)) &&
+                (!state || publishState(n, now) === state),
+        );
+        const [k, d] = sort.split("-");
+        const s = d === "asc" ? 1 : -1;
+        return out.sort((a, b) =>
+            k === "name" ? s * a.name.localeCompare(b.name, "th") : k === "created" ? s * (toTime(a.createdAt) - toTime(b.createdAt)) : s * (toTime(a.date || a.createdAt) - toTime(b.date || b.createdAt)),
+        );
+    }, [news, search, month, year, image, sort, state, now]);
+    const { rows, totalPages, page: cur } = usePaged(filtered, page, perPage);
 
-  const fetchNews = async () => {
-    try {
-      setLoading(true);
-      const data = await newsService.getAll();
-      setNews(data);
-    } catch (err) {
-      console.error("Failed to fetch news:", err);
-      setError("Failed to load news");
-    } finally {
-      setLoading(false);
-    }
-  };
+    const clear = () => {
+        setSearch("");
+        setMonth("");
+        setYear("");
+        setImage("");
+        setState("");
+    };
 
-  useEffect(() => {
-    fetchNews();
-  }, [refreshKey]);
+    const confirmDelete = async () => {
+        if (!toDelete) return;
+        setDeleting(true);
+        const ids = toDelete === "bulk" ? [...sel.ids] : [toDelete._id];
+        try {
+            // ลบในคำขอเดียว (รวมรูปบน R2) แทนการยิงทีละรายการ
+            const r = await batchDelete("news", ids);
+            if (r.notFound.length) toastUtils.warning("ลบแล้วบางส่วน", `ลบ ${r.deleted.length} รายการ · ไม่พบ ${r.notFound.length} รายการ (อาจถูกลบไปก่อนแล้ว)`);
+            else toastUtils.success("ย้ายไปถังขยะแล้ว", `ข่าว ${r.deleted.length} รายการ · กู้คืนได้ที่เมนูถังขยะภายใน 30 วัน`);
+        } catch (e) {
+            toastUtils.error("ลบไม่สำเร็จ", handleApiError(e));
+        }
+        sel.clear();
+        setToDelete(null);
+        setDeleting(false);
+        void load();
+    };
 
-  const router = useRouter();
+    return (
+        <div className="w-full space-y-5">
+            <PageHeader title="ข่าวสาร" description="ข่าวประชาสัมพันธ์ที่แสดงบนหน้าเว็บไซต์" art="news" action={{ label: "เพิ่มข่าวใหม่", href: "/admin/news/create" }} />
 
-  const handleAddClick = () => {
-    router.push("/admin/news/create");
-  };
-
-  const handleDeleteClick = (item: News) => {
-    setNewsToDelete(item);
-    setIsDeleteModalOpen(true);
-  };
-
-  const confirmDelete = async () => {
-    if (!newsToDelete) return;
-    setIsDeleting(true);
-    try {
-      await newsService.delete(newsToDelete._id);
-      setRefreshKey((prev) => prev + 1);
-      setIsDeleteModalOpen(false);
-      setNewsToDelete(null);
-    } catch (error) {
-      console.error(error);
-      setError("Failed to delete news");
-    } finally {
-      setIsDeleting(false);
-    }
-  };
-
-  // Toggle selection of a single item
-  const toggleSelection = (id: string) => {
-    const newSelected = new Set(selectedItems);
-    if (newSelected.has(id)) {
-      newSelected.delete(id);
-    } else {
-      newSelected.add(id);
-    }
-    setSelectedItems(newSelected);
-  };
-
-  // Select/Deselect all visible items
-  const toggleSelectAll = () => {
-    if (selectedItems.size === filteredNews.length && filteredNews.length > 0) {
-      setSelectedItems(new Set());
-    } else {
-      const newSelected = new Set(filteredNews.map((item) => item._id));
-      setSelectedItems(newSelected);
-    }
-  };
-
-  const handleBulkDeleteClick = () => {
-    if (selectedItems.size === 0) return;
-    setIsBulkDeleteModalOpen(true);
-  };
-
-  const confirmBulkDelete = async () => {
-    setIsBulkDeleting(true);
-    try {
-      const idsToDelete = Array.from(selectedItems);
-      await Promise.all(idsToDelete.map((id) => newsService.delete(id)));
-      setRefreshKey((prev) => prev + 1);
-      setSelectedItems(new Set());
-      setIsBulkDeleteModalOpen(false);
-    } catch (error) {
-      console.error("Failed to bulk delete:", error);
-      setError("Failed to delete some items");
-    } finally {
-      setIsBulkDeleting(false);
-    }
-  };
-
-  const filteredNews = useMemo(() => {
-    return news.filter((item) => {
-      const matchesSearch =
-        item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        item.description.toLowerCase().includes(searchTerm.toLowerCase());
-
-      // Filter by Month
-      let matchesMonth = true;
-      if (selectedMonth) {
-        const itemDate = new Date(item.date || item.createdAt || Date.now());
-        const itemMonth = (itemDate.getMonth() + 1).toString().padStart(2, "0");
-        matchesMonth = itemMonth === selectedMonth;
-      }
-
-      // Filter by Year
-      let matchesYear = true;
-      if (selectedYear) {
-        const itemDate = new Date(item.date || item.createdAt || Date.now());
-        const itemYear = itemDate.getFullYear().toString();
-        matchesYear = itemYear === selectedYear;
-      }
-
-      return matchesSearch && matchesMonth && matchesYear;
-    });
-  }, [news, searchTerm, selectedMonth, selectedYear]);
-
-  const totalPages = Math.ceil(filteredNews.length / itemsPerPage);
-  const currentItems = filteredNews.slice(
-    (currentPage - 1) * itemsPerPage,
-    currentPage * itemsPerPage,
-  );
-
-  return (
-    <div className="w-full space-y-6 pb-32">
-      <DeleteModal
-        isOpen={isDeleteModalOpen}
-        onClose={() => setIsDeleteModalOpen(false)}
-        onConfirm={confirmDelete}
-        title="ยืนยันการลบข่าวสาร"
-        description="คุณแน่ใจหรือไม่ที่จะลบข่าวสารนี้"
-        itemName={newsToDelete?.name || ""}
-        isDeleting={isDeleting}
-      />
-
-      <DeleteModal
-        isOpen={isBulkDeleteModalOpen}
-        onClose={() => setIsBulkDeleteModalOpen(false)}
-        onConfirm={confirmBulkDelete}
-        title="ยืนยันการลบหมู่"
-        description={`คุณแน่ใจหรือไม่ที่จะลบข่าวสารจำนวน ${selectedItems.size} รายการ?`}
-        itemName={`ข่าวสาร ${selectedItems.size} รายการ`}
-        isDeleting={isBulkDeleting}
-      />
-
-      {/* Headers */}
-      <PageHeader
-        title="จัดการข่าวสาร"
-        colorClass="bg-sky-500"
-        action={{
-          label: "เพิ่มข่าวใหม่",
-          onClick: handleAddClick,
-        }}
-      >
-        {selectedItems.size > 0 && (
-          <Button
-            onClick={handleBulkDeleteClick}
-            className="cursor-pointer flex items-center gap-2 bg-rose-500 hover:bg-rose-600 text-white px-3 py-1.5 rounded-xl text-xs font-bold shadow-md transition-all animate-in fade-in active:scale-95"
-          >
-            <Trash2 size={16} />
-            ลบที่เลือก ({selectedItems.size})
-          </Button>
-        )}
-      </PageHeader>
-
-      {/* Controls */}
-      <div className="bg-white dark:bg-slate-950 p-4 rounded-xl border border-slate-200 dark:border-slate-800">
-        <div className="flex flex-col xl:flex-row justify-between items-start xl:items-center gap-4">
-          <FilterBar
-            searchTerm={searchTerm}
-            onSearchChange={setSearchTerm}
-            placeholder="ค้นหา ชื่อข่าว, รายละเอียด..."
-            className="w-full xl:w-auto mb-0"
-          >
-            <FilterSelect
-              icon={
-                <Calendar size={14} className="text-slate-400 flex-shrink-0" />
-              }
-              value={selectedMonth}
-              onChange={(val) => {
-                setSelectedMonth(val);
-                setCurrentPage(1);
-              }}
-              options={MONTHS}
-              defaultLabel="ทุกเดือน"
-              className="min-w-[120px]"
+            <ListToolbar
+                search={search}
+                onSearch={setSearch}
+                placeholder="ค้นหาชื่อข่าว, รายละเอียด…"
+                activeFilters={[month, year, image, state].filter(Boolean).length}
+                onClear={clear}
+                filters={
+                    <>
+                        <ToolbarSelect label="สถานะ" value={state} onChange={setState} allLabel="ทุกสถานะ" options={[{ value: "published", label: "เผยแพร่แล้ว" }, { value: "scheduled", label: "ตั้งเวลาไว้" }, { value: "draft", label: "ฉบับร่าง" }]} />
+                        <ToolbarSelect label="ปี" value={year} onChange={setYear} allLabel="ทุกปี" options={years} icon={<CalendarDays className="size-4" />} />
+                        <ToolbarSelect label="เดือน" value={month} onChange={setMonth} allLabel="ทุกเดือน" options={MONTH_OPTIONS} />
+                        <ToolbarSelect label="รูปภาพ" value={image} onChange={setImage} allLabel="รูปทั้งหมด" icon={<ImageIcon className="size-4" />} options={[{ value: "with", label: "มีรูป" }, { value: "without", label: "ไม่มีรูป" }]} />
+                    </>
+                }
+                sort={{ value: sort, onChange: setSort, options: SORTS }}
+                summary={!loading && !error && `พบ ${filtered.length.toLocaleString()} จาก ${news.length.toLocaleString()} ข่าว`}
             />
-            <FilterSelect
-              icon={
-                <Calendar size={14} className="text-slate-400 flex-shrink-0" />
-              }
-              value={selectedYear}
-              onChange={(val) => {
-                setSelectedYear(val);
-                setCurrentPage(1);
-              }}
-              options={years}
-              defaultLabel="ทุกปี"
-              className="min-w-[100px]"
-            />
-            {(selectedMonth || selectedYear) && (
-              <Button
-                onClick={() => {
-                  setSelectedMonth("");
-                  setSelectedYear("");
-                }}
-                className="p-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 rounded-lg text-slate-500 transition-colors"
-                title="ล้างตัวกรอง"
-              >
-                <X size={16} />
-              </Button>
-            )}
-          </FilterBar>
 
-          <Pagination
-            currentPage={currentPage}
-            totalPages={totalPages}
-            itemsPerPage={itemsPerPage}
-            totalItems={filteredNews.length}
-            onPageChange={setCurrentPage}
-            onItemsPerPageChange={setItemsPerPage}
-          />
-        </div>
-      </div>
-
-      {/* Selection Info Bar */}
-      {filteredNews.length > 0 && (
-        <div className="flex items-center gap-2 mb-2 px-1">
-          <Button
-            onClick={toggleSelectAll}
-            className="flex items-center gap-2 text-sm text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 transition-colors"
-          >
-            {selectedItems.size === filteredNews.length &&
-            filteredNews.length > 0 ? (
-              <CheckSquare size={18} className="text-sky-500" />
-            ) : (
-              <Square size={18} />
-            )}
-            {selectedItems.size === filteredNews.length
-              ? "ยกเลิกเลือกทั้งหมด"
-              : "เลือกทั้งหมด"}
-          </Button>
-          {selectedItems.size > 0 && (
-            <span className="text-xs font-medium text-sky-600 bg-sky-50 dark:bg-sky-900/20 px-2 py-0.5 rounded-full">
-              เลือกอยู่ {selectedItems.size} รายการ
-            </span>
-          )}
-        </div>
-      )}
-
-      {/* News Grid */}
-      {loading ? (
-        <GridSkeleton count={6} />
-      ) : filteredNews.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-20 text-slate-400 bg-slate-50 rounded-2xl border-2 border-dashed border-slate-200">
-          <div className="p-4 bg-white rounded-full shadow-sm mb-4">
-            <Search size={32} className="text-slate-300" />
-          </div>
-          <p>ไม่พบข่าวสารที่ค้นหา</p>
-        </div>
-      ) : (
-        <div className="grid grid-cols-2 lg:grid-cols-4 xl:grid-cols-6 gap-4">
-          {currentItems.map((item, index) => {
-            const isSelected = selectedItems.has(item._id);
-            return (
-              <div
-                key={item._id}
-                className={`group h-full relative bg-white dark:bg-slate-900 rounded-xl overflow-hidden border transition-all duration-300 hover:shadow-lg flex flex-col ${
-                  isSelected
-                    ? "border-sky-500 ring-2 ring-sky-500/20 shadow-md"
-                    : "border-slate-200 dark:border-slate-800 shadow-sm hover:border-sky-200 dark:hover:border-sky-800"
-                }`}
-              >
-                {/* Sequence Number Badge */}
-                <div className="absolute top-2 right-2 z-20 pointer-events-none">
-                  <div className="bg-black/40 backdrop-blur-md text-white text-[10px] font-bold px-2 py-0.5 rounded-md shadow-sm border border-white/20">
-                    #{(currentPage - 1) * itemsPerPage + index + 1}
-                  </div>
-                </div>
-
-                {/* Selection Checkbox Overlay */}
-                <div className="absolute top-2 left-2 z-20">
-                  <Button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      toggleSelection(item._id);
-                    }}
-                    className={`p-1 rounded-md transition-all ${
-                      isSelected
-                        ? "bg-sky-500 text-white shadow-sm"
-                        : "bg-white/80 backdrop-blur-sm text-slate-400 hover:bg-white hover:text-sky-500 shadow-sm opacity-0 group-hover:opacity-100"
-                    }`}
-                  >
-                    {isSelected ? (
-                      <CheckSquare size={16} />
-                    ) : (
-                      <Square size={16} />
-                    )}
-                  </Button>
-                </div>
-
-                <div className="aspect-[4/3] relative overflow-hidden bg-slate-100">
-                  {item.images && item.images.length > 0 ? (
-                    <Image
-                      src={item.images[0]}
-                      alt={item.name}
-                      fill
-                      className="object-cover transition-transform duration-500 group-hover:scale-110"
-                      sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+            {error ? (
+                <Section>
+                    <EmptyState art="news" title="โหลดข่าวไม่สำเร็จ" description={error} action={<button type="button" className="btn-primary" onClick={load}>ลองใหม่</button>} />
+                </Section>
+            ) : loading ? (
+                <CardGridSkeleton />
+            ) : filtered.length === 0 ? (
+                <Section>
+                    <EmptyState
+                        art="news"
+                        title={news.length ? "ไม่พบข่าวที่ตรงกับตัวกรอง" : "ยังไม่มีข่าว"}
+                        description={news.length ? "ลองเปลี่ยนคำค้นหรือล้างตัวกรอง" : "เริ่มเขียนข่าวแรกเพื่อแสดงบนหน้าเว็บไซต์"}
+                        action={news.length ? <button type="button" className="btn-secondary" onClick={clear}>ล้างตัวกรอง</button> : undefined}
                     />
-                  ) : (
-                    <div className="flex items-center justify-center h-full text-slate-300">
-                      <Calendar size={32} />
+                </Section>
+            ) : (
+                <>
+                    <div className={CARD_GRID}>
+                        {rows.map((n) => (
+                            <ContentCard
+                                key={n._id}
+                                image={n.images?.[0]}
+                                title={n.name}
+                                subtitle={n.description}
+                                meta={fmtDate(n.date || n.createdAt)}
+                                art="news"
+                                badges={<StateBadge state={publishState(n, now)} at={n.publishAt} />}
+                                editHref={`/admin/news/edit/${n._id}`}
+                                onDelete={() => setToDelete(n)}
+                                selected={sel.has(n._id)}
+                                onSelect={() => sel.toggle(n._id)}
+                            />
+                        ))}
                     </div>
-                  )}
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-60" />
-                  <div className="absolute bottom-2 left-3 right-3 text-white text-[10px] sm:text-xs font-medium truncate flex items-center gap-1">
-                    <Calendar size={10} className="text-sky-300" />
-                    {item.date
-                      ? new Date(item.date).toLocaleDateString("th-TH")
-                      : "-"}
-                  </div>
-                </div>
+                    <div className="flex justify-end">
+                        <Pagination currentPage={cur} totalPages={totalPages} itemsPerPage={perPage} totalItems={filtered.length} onPageChange={setPage} onItemsPerPageChange={setPerPage} />
+                    </div>
+                </>
+            )}
 
-                <div className="p-3 flex flex-col flex-grow">
-                  <h3 className="font-bold text-slate-800 dark:text-slate-100 mb-1 line-clamp-2 text-sm group-hover:text-sky-600 transition-colors h-10">
-                    {item.name}
-                  </h3>
-                  <p className="text-xs text-slate-500 dark:text-slate-400 line-clamp-2 mb-3 h-8">
-                    {item.description}
-                  </p>
-
-                  {/* Card Actions Footer */}
-                  <div className="mt-3 pt-3 border-t border-slate-100 dark:border-slate-800 flex justify-end gap-2">
-                    <Link
-                      href={`/admin/news/edit/${item._id}`}
-                      className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-sky-600 bg-sky-50 hover:bg-sky-100 dark:bg-sky-900/20 dark:hover:bg-sky-900/40 rounded-lg transition-colors"
-                    >
-                      <Edit2 size={12} />
-                      แก้ไข
-                    </Link>
-                    <Button
-                      onClick={() => handleDeleteClick(item)}
-                      className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-rose-600 bg-rose-50 hover:bg-rose-100 dark:bg-rose-900/20 dark:hover:bg-rose-900/40 rounded-lg transition-colors"
-                    >
-                      <Trash2 size={12} />
-                      ลบ
-                    </Button>
-                  </div>
-                </div>
-              </div>
-            );
-          })}
+            <BulkBar count={sel.size} pageIds={rows.map((r) => r._id)} selection={sel} onDelete={() => setToDelete("bulk")} />
+            <DeleteModal
+                isOpen={!!toDelete}
+                onClose={() => setToDelete(null)}
+                onConfirm={confirmDelete}
+                isDeleting={deleting}
+                recoverable
+                title={toDelete === "bulk" ? `ลบข่าว ${sel.size} รายการ?` : "ลบข่าวนี้?"}
+                description={toDelete === "bulk" ? "ข่าวที่เลือกทั้งหมดจะถูกลบออกจากเว็บไซต์" : "ข่าวนี้จะถูกลบออกจากเว็บไซต์"}
+                itemName={toDelete && toDelete !== "bulk" ? toDelete.name : undefined}
+            />
         </div>
-      )}
-
-      <PaginationInfo totalItems={filteredNews.length} />
-    </div>
-  );
+    );
 }

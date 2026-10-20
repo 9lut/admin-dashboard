@@ -235,17 +235,20 @@ export const blogRepo = {
       // Apply filters
       rows = rows.filter((b) => {
         if (options.search && !matchesSearch(b, options.search)) return false;
-        if (
-          options.group && typeof b.group === "string"
-            ? b.group !== options.group
-            : (b.group as any)?._id !== options.group &&
-              (b.group as any)?.name !== options.group
-        )
-          return false;
+        // เดิมไม่มีวงเล็บ: ตอนไม่ได้กรองกลุ่ม บทความที่ group เป็น object ถูกตัดทิ้งทั้งหมด
+        if (options.group) {
+          const g = b.group as unknown;
+          const match =
+            typeof g === "string"
+              ? g === options.group
+              : (g as { _id?: string; name?: string } | null)?._id === options.group ||
+                (g as { _id?: string; name?: string } | null)?.name === options.group;
+          if (!match) return false;
+        }
         if (options.status && b.status !== options.status) return false;
 
         if (options.month || options.year) {
-          const d = new Date(b.createdAt || Date.now());
+          const d = new Date((b as { publishedAt?: string }).publishedAt || b.createdAt || Date.now());
           if (
             options.month &&
             (d.getMonth() + 1).toString().padStart(2, "0") !== options.month
@@ -324,17 +327,7 @@ export const blogRepo = {
     await doc.ref.update(patch);
     await updateGroups(dto.group);
 
-    if (dto.deletedImages && dto.deletedImages.length > 0) {
-      await Promise.all(
-        dto.deletedImages
-          .filter(Boolean)
-          .map((url) =>
-            deleteFile(url as string).catch((err) =>
-              console.error("Failed to delete image:", err),
-            ),
-          ),
-      );
-    }
+    // ไม่ลบไฟล์รูปที่เอาออกทันที (ประวัติการแก้ไขย้อนกลับได้) — จัดการที่ "คลังรูป"
 
     return mapDoc(await doc.ref.get());
   },

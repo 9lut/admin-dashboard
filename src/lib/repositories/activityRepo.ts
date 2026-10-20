@@ -2,6 +2,7 @@ import 'server-only';
 import { col, mapDoc, timestamps, touch, Timestamp, FieldValue } from '../firebase/firestore';
 import { NotFound } from '../http/response';
 import { deleteFile } from '../storage/r2';
+import { liveOnly } from '../content/publish';
 
 const COLLECTION = 'activities';
 
@@ -18,6 +19,10 @@ export type ActivityFields = {
     start_date?: Date | null;
     end_date?: Date | null;
     favorite?: boolean;
+    /** 'draft' | 'published' — ไม่ส่ง = คงค่าเดิม */
+    status?: 'draft' | 'published';
+    /** เวลาเผยแพร่ (ตั้งเวลา) — null = ทันที */
+    publishAt?: Date | null;
 };
 
 type ActivityRaw = {
@@ -44,6 +49,12 @@ function toListItem(a: ActivityRaw & { _id: string }) {
         description: a.description,
         favorite: a.favorite,
         images: a.images && a.images.length > 0 ? a.images[0] : null,
+        // ใช้กรองสถานะ/ปีในหน้าแอดมิน (เพิ่มฟิลด์ = ไม่กระทบผู้ใช้เดิม)
+        start_date: a.start_date ?? null,
+        status: (a.status as string | undefined) ?? 'published',
+        publishAt: (a.publishAt as string | undefined) ?? null,
+        end_date: a.end_date ?? null,
+        createdAt: (a.createdAt as string | undefined) ?? null,
     };
 }
 
@@ -100,6 +111,8 @@ export const activityRepo = {
             start_date: ts(fields.start_date),
             end_date: ts(fields.end_date),
             favorite: fields.favorite ?? false,
+            status: fields.status ?? 'published',
+            publishAt: fields.publishAt ? Timestamp.fromDate(fields.publishAt) : null,
             slug,
             images,
             views: 0,
@@ -127,10 +140,8 @@ export const activityRepo = {
         const current = mapDoc<{ images?: string[] }>(snap);
 
         let images = current.images ?? [];
-        if (deleteImages.length) {
-            for (const url of deleteImages) await deleteFile(url);
-            images = images.filter((img) => !deleteImages.includes(img));
-        }
+        // ไม่ลบไฟล์บน R2 ทันที: ประวัติการแก้ไขอาจย้อนกลับมาใช้ · รูปที่ไม่มีใครใช้จัดการที่ "คลังรูป"
+        if (deleteImages.length) images = images.filter((img) => !deleteImages.includes(img));
         if (newImages.length) images = [...images, ...newImages];
 
         const patch: Record<string, unknown> = { images, ...touch() };
@@ -146,6 +157,8 @@ export const activityRepo = {
         if (fields.start_date !== undefined) patch.start_date = ts(fields.start_date);
         if (fields.end_date !== undefined) patch.end_date = ts(fields.end_date);
         if (fields.favorite !== undefined) patch.favorite = fields.favorite;
+        if (fields.status !== undefined) patch.status = fields.status;
+        if (fields.publishAt !== undefined) patch.publishAt = fields.publishAt ? Timestamp.fromDate(fields.publishAt) : null;
 
         await ref.update(patch);
         return mapDoc(await ref.get());
@@ -164,9 +177,9 @@ export const activityRepo = {
         const snap = await col(COLLECTION)
             .where('favorite', '==', true)
             .orderBy('updatedAt', 'desc')
-            .limit(4)
+            .limit(12)
             .get();
-        return snap.docs.map((d) => toListItem(mapDoc<ActivityRaw>(d)));
+        return liveOnly(snap.docs.map((d) => mapDoc<ActivityRaw>(d)), Date.now()).slice(0, 4).map(toListItem);
     },
 
     async findActivitiesThisMonth() {
@@ -178,7 +191,7 @@ export const activityRepo = {
             .where('start_date', '<', Timestamp.fromDate(end))
             .orderBy('start_date', 'asc')
             .get();
-        return snap.docs.map((d) => mapDoc(d));
+        return liveOnly(snap.docs.map((d) => mapDoc<ActivityRaw>(d)), Date.now());
     },
 
     async getRoadmap() {
@@ -187,9 +200,7 @@ export const activityRepo = {
             .where('start_date', '!=', null)
             .orderBy('start_date', 'asc')
             .get();
-        return snap.docs
-            .map((d) => mapDoc<ActivityRaw>(d))
-            .filter((a) => a.end_date != null);
+        return liveOnly(snap.docs.map((d) => mapDoc<ActivityRaw>(d)), Date.now()).filter((a) => a.end_date != null);
     },
 
     async countAll(startDate?: string, endDate?: string) {

@@ -11,7 +11,7 @@ export const prayerRoomService = {
     },
 
     getById: async (id: string) => {
-        const response = await api.get<ApiEnvelope<PrayerRoom>>(`/prayer-rooms/${id}`);
+        const response = await api.get<ApiEnvelope<PrayerRoom>>(`/prayer-rooms/${id}?admin=1`);
         return unwrapResponse(response);
     },
 

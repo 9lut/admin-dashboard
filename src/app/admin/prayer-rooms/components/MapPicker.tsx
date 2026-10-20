@@ -18,7 +18,7 @@ const DEFAULT_CENTER = { lat: 7.0086, lng: 100.4986 };
 const pinIcon = L.divIcon({
     className: "",
     html: `<svg width="34" height="34" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style="filter:drop-shadow(0 2px 3px rgba(0,0,0,.35))">
-        <path d="M12 2C7.6 2 4 5.6 4 10c0 5.4 7 11.5 7.3 11.7.4.4 1 .4 1.4 0C13 21.5 20 15.4 20 10c0-4.4-3.6-8-8-8z" fill="#10b981" stroke="#fff" stroke-width="1.5"/>
+        <path d="M12 2C7.6 2 4 5.6 4 10c0 5.4 7 11.5 7.3 11.7.4.4 1 .4 1.4 0C13 21.5 20 15.4 20 10c0-4.4-3.6-8-8-8z" fill="#1468c2" stroke="#fff" stroke-width="1.5"/>
         <circle cx="12" cy="10" r="3" fill="#fff"/>
     </svg>`,
     iconSize: [34, 34],
@@ -137,7 +137,7 @@ export default function MapPicker({ lat, lng, onChange }: MapPickerProps) {
                             }
                         }}
                         placeholder="ค้นหาสถานที่ เช่น มอ.หาดใหญ่, คณะวิศวกรรมศาสตร์"
-                        className="w-full pl-9 pr-3 py-2 text-sm border border-slate-200 dark:border-slate-700 rounded-lg bg-slate-50 dark:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-sky-500 transition-all"
+                        className="w-full pl-9 pr-3 py-2 text-sm border border-line rounded-lg bg-surface-2 focus:outline-none focus:ring-2 focus:ring-sky-500 transition-all"
                     />
                 </div>
                 <button
@@ -154,7 +154,7 @@ export default function MapPicker({ lat, lng, onChange }: MapPickerProps) {
                     onClick={useCurrentLocation}
                     disabled={locating}
                     title="ใช้ตำแหน่งปัจจุบัน"
-                    className="px-3 py-2 text-sm font-medium rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center gap-1.5 disabled:opacity-60"
+                    className="px-3 py-2 text-sm font-medium rounded-lg border border-line hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center gap-1.5 disabled:opacity-60"
                 >
                     {locating ? <Loader2 size={16} className="animate-spin" /> : <LocateFixed size={16} />}
                 </button>
@@ -163,7 +163,7 @@ export default function MapPicker({ lat, lng, onChange }: MapPickerProps) {
             {/* Map */}
             <div
                 ref={mapEl}
-                className="h-72 w-full rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700 z-0"
+                className="h-72 w-full rounded-xl overflow-hidden border border-line z-0"
             />
 
             {/* Hint + readout */}

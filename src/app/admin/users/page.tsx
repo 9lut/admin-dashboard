@@ -1,390 +1,401 @@
 "use client";
-import { useState, useMemo, useEffect } from "react";
-import {
-    Plus, Search, Edit2, Trash2,
-    ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight,
-    ArrowUpDown, Mail, Phone
-} from "lucide-react";
+
+import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { Building2, Check, ChevronRight, Clock, KeyRound, LayoutList, Loader2, ShieldCheck, UserCheck, UserPlus, Users, X } from "lucide-react";
+import { PageHeader } from "@/app/components/ui/PageHeader";
+import { ListToolbar, ToolbarSelect } from "@/app/components/ui/ListToolbar";
+import { Pagination } from "@/app/components/ui/Pagination";
+import { Badge, EmptyState, Section, Segmented, type Tone } from "@/app/components/ui/kit";
 import { Skeleton } from "@/app/components/ui/skeleton";
-import { useUsers } from "@/hooks/useUsers";
-import { useAuth } from "@/hooks/useAuth";
+import { useSelection } from "@/app/components/ui/list";
 import DeleteUserModal from "./components/DeleteUserModal";
-import { User } from "@/types/user";
-import { useRouter } from "next/navigation";
-import Link from "next/link";
+import { UserDrawer } from "./components/UserDrawer";
+import { CreateUserModal } from "./components/CreateUserModal";
+import { userService } from "@/services/userService";
+import { permissionService } from "@/services/permissionService";
+import { useAuth } from "@/hooks/useAuth";
+import { ROLE_LABEL, type DepartmentMap, type Role } from "@/lib/access/menus";
+import { handleApiError } from "@/lib/axios";
+import { toastUtils } from "@/lib/toast";
+import type { User } from "@/types/user";
+import { cn } from "@/lib/utils";
 
-export default function UsersPage() {
-    const [searchTerm, setSearchTerm] = useState("");
-    const [debouncedSearch, setDebouncedSearch] = useState("");
-    const [currentPage, setCurrentPage] = useState(1);
-    const [itemsPerPage, setItemsPerPage] = useState(20);
+const ROLE_TONE: Record<string, Tone> = { superadmin: "primary", admin: "green", user: "gray" };
+const DAY = 86400000;
+const STATUS = [
+    { value: "active30", label: "เข้าใช้ใน 30 วัน" },
+    { value: "inactive", label: "ไม่ได้เข้าเกิน 30 วัน" },
+    { value: "never", label: "ยังไม่เคยเข้าสู่ระบบ" },
+    { value: "mustChange", label: "รอเปลี่ยนรหัสผ่าน" },
+    { value: "noDept", label: "ยังไม่มีฝ่าย" },
+];
+const SORTS = [
+    { value: "name-asc", label: "ชื่อ ก → ฮ" },
+    { value: "created-desc", label: "เพิ่มล่าสุด" },
+    { value: "login-desc", label: "เข้าใช้ล่าสุด" },
+];
 
-    // Debounce search term to prevent rapid API calls
-    useEffect(() => {
-        const timer = setTimeout(() => setDebouncedSearch(searchTerm), 500);
-        return () => clearTimeout(timer);
-    }, [searchTerm]);
+const time = (v?: string | null) => (v ? new Date(v).getTime() || 0 : 0);
+function ago(v?: string | null) {
+    const t = time(v);
+    if (!t) return "ยังไม่เคยเข้าสู่ระบบ";
+    const d = Math.floor((Date.now() - t) / DAY);
+    return d <= 0 ? "เข้าวันนี้" : d === 1 ? "เข้าเมื่อวาน" : d < 30 ? `${d} วันที่แล้ว` : d < 365 ? `${Math.floor(d / 30)} เดือนที่แล้ว` : `${Math.floor(d / 365)} ปีที่แล้ว`;
+}
+const fullName = (u: User) => `${u.firstName ?? ""} ${u.lastName ?? ""}`.trim() || u.email;
 
-    // Reset to page 1 when search or limit changes
-    useEffect(() => {
-        setCurrentPage(1);
-    }, [debouncedSearch, itemsPerPage]);
+function Avatar({ u, size = "md" }: { u: User; size?: "sm" | "md" }) {
+    return (
+        <span className={cn("grid shrink-0 place-items-center rounded-full bg-gradient-to-br from-sky-400 to-sky-700 font-bold text-white", size === "sm" ? "size-8 text-xs" : "size-10 text-sm")}>
+            {`${u.firstName?.charAt(0) ?? ""}${u.lastName?.charAt(0) ?? ""}`.toUpperCase() || "?"}
+        </span>
+    );
+}
 
-    // Server-side fetching
-    const { users, total, totalPages, loading, error, refresh } = useUsers(currentPage, itemsPerPage, debouncedSearch);
+function Check4({ on, onClick, label }: { on: boolean; onClick: () => void; label: string }) {
+    return (
+        <button
+            type="button"
+            onClick={(e) => {
+                e.stopPropagation();
+                onClick();
+            }}
+            aria-pressed={on}
+            aria-label={label}
+            className={cn("grid size-5 shrink-0 place-items-center rounded-md border-2 transition-colors", on ? "border-primary bg-primary text-primary-fg" : "border-line-strong hover:border-primary")}
+        >
+            {on && <Check className="size-3" strokeWidth={3} />}
+        </button>
+    );
+}
 
-    const [isDeleteUserOpen, setIsDeleteUserOpen] = useState(false);
-    const [userToDelete, setUserToDelete] = useState<User | null>(null);
-
+function UsersInner() {
     const router = useRouter();
-    const { user, isSuperAdmin, loading: authLoading } = useAuth();
+    const params = useSearchParams();
+    const { user: me, isSuperAdmin, loading: authLoading } = useAuth();
 
+    const [users, setUsers] = useState<User[] | null>(null);
+    const [map, setMap] = useState<DepartmentMap>({});
+    const [error, setError] = useState("");
+    const [view, setView] = useState<"list" | "dept">("list");
+    const [search, setSearch] = useState("");
+    const [role, setRole] = useState("");
+    const [dept, setDept] = useState(params.get("department") ?? "");
+    const [status, setStatus] = useState("");
+    const [sort, setSort] = useState("name-asc");
+    const [page, setPage] = useState(1);
+    const [perPage, setPerPage] = useState(20);
+
+    const [openId, setOpenId] = useState<string | null>(null);
+    const [creating, setCreating] = useState(false);
+    const [toDelete, setToDelete] = useState<User | null>(null);
+    const [bulkBusy, setBulkBusy] = useState(false);
+    const sel = useSelection();
+
+    const load = useCallback(async () => {
+        setError("");
+        try {
+            const [list, perms] = await Promise.all([userService.getAllUsers(), permissionService.getSettings()]);
+            setUsers(list);
+            setMap(perms.departments ?? {});
+        } catch (e) {
+            setError(handleApiError(e));
+        }
+    }, []);
     useEffect(() => {
-        if (!authLoading && !isSuperAdmin) {
-            router.push('/admin');
-        }
-    }, [isSuperAdmin, authLoading, router]);
+        if (isSuperAdmin) void load();
+    }, [isSuperAdmin, load]);
+    useEffect(() => setPage(1), [search, role, dept, status, sort, perPage]);
 
-    const formatDate = (dateString: string) => {
-        if (!dateString) return "-";
-        return new Date(dateString).toLocaleDateString('th-TH', {
-            year: 'numeric', month: 'short', day: 'numeric',
-            hour: '2-digit', minute: '2-digit'
+    const deptNames = useMemo(() => Object.keys(map).sort((a, b) => a.localeCompare(b, "th")), [map]);
+    const filtered = useMemo(() => {
+        const q = search.trim().toLowerCase();
+        const now = Date.now();
+        const out = (users ?? []).filter((u) => {
+            if (q && !`${u.firstName} ${u.lastName} ${u.email} ${u.phoneNumber ?? ""} ${(u.departments ?? []).join(" ")}`.toLowerCase().includes(q)) return false;
+            if (role && u.role !== role) return false;
+            if (dept === "__none" ? (u.departments ?? []).length > 0 : dept && !(u.departments ?? []).includes(dept)) return false;
+            const last = time(u.lastLoginAt);
+            if (status === "active30" && !(last && now - last <= 30 * DAY)) return false;
+            if (status === "inactive" && !(last && now - last > 30 * DAY)) return false;
+            if (status === "never" && last) return false;
+            if (status === "mustChange" && !u.mustChangePassword) return false;
+            if (status === "noDept" && (u.role === "superadmin" || (u.departments ?? []).length)) return false;
+            return true;
         });
+        const [key, dir] = sort.split("-");
+        const s = dir === "asc" ? 1 : -1;
+        return out.sort((a, b) =>
+            key === "name" ? s * fullName(a).localeCompare(fullName(b), "th") : key === "login" ? s * (time(a.lastLoginAt) - time(b.lastLoginAt)) : s * (time(a.createdAt) - time(b.createdAt)),
+        );
+    }, [users, search, role, dept, status, sort]);
+
+    const totalPages = Math.max(1, Math.ceil(filtered.length / perPage));
+    const rows = filtered.slice((page - 1) * perPage, page * perPage);
+    const pageIds = rows.map((r) => r._id);
+    const allOnPage = pageIds.length > 0 && pageIds.every((id) => sel.has(id));
+    const opened = users?.find((u) => u._id === openId) ?? null;
+
+    const counts = useMemo(() => {
+        const all = users ?? [];
+        return {
+            all: all.length,
+            superadmin: all.filter((u) => u.role === "superadmin").length,
+            noDept: all.filter((u) => u.role !== "superadmin" && !(u.departments ?? []).length).length,
+            mustChange: all.filter((u) => u.mustChangePassword).length,
+        };
+    }, [users]);
+
+    const clear = () => {
+        setSearch("");
+        setRole("");
+        setDept("");
+        setStatus("");
+        router.replace("/admin/users");
     };
 
-    const handleDeleteClick = (userToDelete: User) => {
-        if (user && user._id === userToDelete._id) {
-            alert("ไม่สามารถลบบัญชีผู้ใช้ที่กำลังใช้งานอยู่ได้");
-            return;
+    const patchLocal = (u: User) => setUsers((list) => (list ?? []).map((x) => (x._id === u._id ? { ...x, ...u } : x)));
+
+    const bulk = async (action: "add-department" | "remove-department" | "set-role", value: string) => {
+        if (!value) return;
+        setBulkBusy(true);
+        try {
+            const r = await userService.bulk({ action, ids: [...sel.ids], value });
+            const verb = action === "add-department" ? `เพิ่มเข้า “${value}”` : action === "remove-department" ? `เอาออกจาก “${value}”` : `เปลี่ยนเป็น${ROLE_LABEL[value as Role]}`;
+            toastUtils.success("อัปเดตแล้ว", `${verb} ${r.updated.length} คน${r.failed.length ? ` · ไม่สำเร็จ ${r.failed.length}` : ""}`);
+            sel.clear();
+            await load();
+        } catch (e) {
+            toastUtils.error("ทำรายการไม่สำเร็จ", handleApiError(e));
+        } finally {
+            setBulkBusy(false);
         }
-        setUserToDelete(userToDelete);
-        setIsDeleteUserOpen(true);
     };
 
+    if (!authLoading && !isSuperAdmin) {
+        return <EmptyState art="security" title="เฉพาะผู้ดูแลสูงสุด" description="การจัดการบัญชีผู้ใช้เปิดให้เฉพาะผู้ดูแลสูงสุดเท่านั้น" />;
+    }
 
-
-    // Unified loading state
-    const isPageLoading = authLoading || loading;
-
-    if (!authLoading && !isSuperAdmin) return <div className="p-8 text-center text-red-500 font-bold">คุณไม่มีสิทธิ์เข้าถึงหน้านี้ (Superadmin Only)</div>;
+    const quick = [
+        { label: "ผู้ใช้ทั้งหมด", value: counts.all, icon: UserCheck, onClick: clear, warn: false },
+        { label: "ผู้ดูแลสูงสุด", value: counts.superadmin, icon: ShieldCheck, onClick: () => setRole("superadmin"), warn: false },
+        { label: "ยังไม่มีฝ่าย", value: counts.noDept, icon: Building2, onClick: () => setStatus("noDept"), warn: counts.noDept > 0 },
+        { label: "รอเปลี่ยนรหัสผ่าน", value: counts.mustChange, icon: KeyRound, onClick: () => setStatus("mustChange"), warn: false },
+    ];
 
     return (
-        <div className="w-full space-y-4 pb-32">
+        <div className="w-full space-y-5">
+            <PageHeader title="ผู้ใช้งาน" description="แตะที่ผู้ใช้เพื่อแก้บทบาท ฝ่าย หรือรีเซ็ตรหัสผ่านได้ทันที" art="users">
+                <Segmented label="มุมมอง" value={view} onChange={setView} options={[{ id: "list", label: "รายชื่อ" }, { id: "dept", label: "ตามฝ่าย" }]} />
+                <button type="button" className="btn-primary" onClick={() => setCreating(true)}>
+                    <UserPlus className="size-4" /> <span className="hidden sm:inline">เพิ่มผู้ใช้</span>
+                </button>
+            </PageHeader>
 
-            {userToDelete && (
-                <DeleteUserModal
-                    isOpen={isDeleteUserOpen}
-                    onClose={() => setIsDeleteUserOpen(false)}
-                    onSuccess={refresh}
-                    userIdToDelete={userToDelete._id}
-                    userNameToDelete={`${userToDelete.firstName} ${userToDelete.lastName}`}
-                />
+            <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+                {quick.map((q) =>
+                    !users ? (
+                        <Skeleton key={q.label} className="h-[76px] rounded-2xl" />
+                    ) : (
+                        <button key={q.label} type="button" onClick={q.onClick} className="flex items-center gap-3 rounded-2xl border border-line bg-surface p-3 text-left shadow-card transition-colors hover:border-primary/40">
+                            <span className={cn("grid size-10 shrink-0 place-items-center rounded-xl", q.warn ? "bg-warning-soft text-warning" : "bg-primary-soft text-primary")}>
+                                <q.icon className="size-5" />
+                            </span>
+                            <span className="min-w-0">
+                                <span className="tabular block font-display text-xl leading-tight font-bold text-fg">{q.value}</span>
+                                <span className="block truncate text-xs text-muted">{q.label}</span>
+                            </span>
+                        </button>
+                    ),
+                )}
+            </div>
+
+            {error ? (
+                <Section>
+                    <EmptyState art="users" title="โหลดรายชื่อผู้ใช้ไม่สำเร็จ" description={error} action={<button type="button" className="btn-primary" onClick={load}>ลองใหม่</button>} />
+                </Section>
+            ) : view === "dept" ? (
+                /* ---------- มุมมองตามฝ่าย ---------- */
+                !users ? (
+                    <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">{Array.from({ length: 6 }, (_, i) => <Skeleton key={i} className="h-48 rounded-3xl" />)}</div>
+                ) : (
+                    <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
+                        {[...deptNames, "__none"].map((d) => {
+                            const members = users.filter((u) => (d === "__none" ? u.role !== "superadmin" && !(u.departments ?? []).length : (u.departments ?? []).includes(d)));
+                            if (d === "__none" && !members.length) return null;
+                            return (
+                                <Section
+                                    key={d}
+                                    title={<span className="flex items-center gap-2">{d === "__none" ? "ยังไม่มีฝ่าย" : d}<Badge tone={d === "__none" ? "amber" : "gray"}>{members.length} คน</Badge></span>}
+                                    description={d === "__none" ? "ผู้ใช้กลุ่มนี้ยังไม่เห็นเมนูใด" : `${map[d]?.length ?? 0} เมนู`}
+                                    bodyClassName="p-2"
+                                >
+                                    {members.length === 0 ? (
+                                        <p className="p-4 text-center text-sm text-muted">ยังไม่มีสมาชิก — เปิดผู้ใช้แล้วเลือกฝ่ายนี้</p>
+                                    ) : (
+                                        <ul>
+                                            {members.map((u) => (
+                                                <li key={u._id}>
+                                                    <button type="button" onClick={() => setOpenId(u._id)} className="flex w-full items-center gap-2.5 rounded-xl p-2 text-left hover:bg-surface-2">
+                                                        <Avatar u={u} size="sm" />
+                                                        <span className="min-w-0 flex-1">
+                                                            <span className="block truncate text-sm font-bold text-fg">{fullName(u)}</span>
+                                                            <span className="block truncate text-[11px] text-muted">{ROLE_LABEL[u.role as Role]} · {ago(u.lastLoginAt)}</span>
+                                                        </span>
+                                                        <ChevronRight className="size-4 shrink-0 text-muted" />
+                                                    </button>
+                                                </li>
+                                            ))}
+                                        </ul>
+                                    )}
+                                </Section>
+                            );
+                        })}
+                    </div>
+                )
+            ) : (
+                /* ---------- มุมมองรายชื่อ ---------- */
+                <>
+                    <ListToolbar
+                        search={search}
+                        onSearch={setSearch}
+                        placeholder="ค้นหา ชื่อ, อีเมล, เบอร์โทร, ฝ่าย…"
+                        activeFilters={[role, dept, status].filter(Boolean).length}
+                        onClear={clear}
+                        filters={
+                            <>
+                                <ToolbarSelect label="บทบาท" value={role} onChange={setRole} allLabel="ทุกบทบาท" options={(["superadmin", "admin", "user"] as Role[]).map((r) => ({ value: r, label: ROLE_LABEL[r] }))} />
+                                <ToolbarSelect label="ฝ่าย" value={dept} onChange={setDept} allLabel="ทุกฝ่าย" options={[...deptNames.map((d) => ({ value: d, label: d })), { value: "__none", label: "— ไม่มีฝ่าย —" }]} />
+                                <ToolbarSelect label="สถานะ" value={status} onChange={setStatus} allLabel="ทุกสถานะ" options={STATUS} />
+                            </>
+                        }
+                        sort={{ value: sort, onChange: setSort, options: SORTS }}
+                        summary={users && `พบ ${filtered.length.toLocaleString()} จาก ${users.length.toLocaleString()} บัญชี · ติ๊กเลือกหลายคนเพื่อจัดฝ่าย/บทบาทพร้อมกัน`}
+                    />
+
+                    {!users ? (
+                        <div className="space-y-2">{Array.from({ length: 6 }, (_, i) => <Skeleton key={i} className="h-16 rounded-2xl" />)}</div>
+                    ) : rows.length === 0 ? (
+                        <Section>
+                            <EmptyState
+                                art="users"
+                                title={users.length ? "ไม่พบผู้ใช้ที่ตรงกับตัวกรอง" : "ยังไม่มีผู้ใช้"}
+                                action={users.length ? <button type="button" className="btn-secondary" onClick={clear}>ล้างตัวกรอง</button> : <button type="button" className="btn-primary" onClick={() => setCreating(true)}>เพิ่มผู้ใช้คนแรก</button>}
+                            />
+                        </Section>
+                    ) : (
+                        <Section bodyClassName="divide-y divide-line">
+                            <div className="flex items-center gap-3 bg-surface-2/60 px-4 py-2.5 text-xs font-bold text-muted">
+                                <Check4 on={allOnPage} onClick={() => sel.setMany(pageIds, !allOnPage)} label="เลือกทั้งหน้า" />
+                                <span className="flex-1">ผู้ใช้</span>
+                                <span className="hidden w-56 md:block">ฝ่าย</span>
+                                <span className="hidden w-32 lg:block">เข้าใช้ล่าสุด</span>
+                                <span className="w-5" />
+                            </div>
+                            {rows.map((u) => {
+                                const self = u._id === me?._id;
+                                const on = sel.has(u._id);
+                                return (
+                                    <div
+                                        key={u._id}
+                                        role="button"
+                                        tabIndex={0}
+                                        onClick={() => setOpenId(u._id)}
+                                        onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && (e.preventDefault(), setOpenId(u._id))}
+                                        className={cn("flex cursor-pointer items-center gap-3 px-4 py-3 transition-colors hover:bg-surface-2/60 focus-visible:bg-surface-2 focus-visible:outline-none", on && "bg-primary-soft/40")}
+                                    >
+                                        <Check4 on={on} onClick={() => sel.toggle(u._id)} label={`เลือก ${fullName(u)}`} />
+                                        <Avatar u={u} />
+                                        <div className="min-w-0 flex-1">
+                                            <p className="flex items-center gap-1.5 text-sm font-bold text-fg">
+                                                <span className="truncate">{fullName(u)}</span>
+                                                {self && <Badge tone="primary">คุณ</Badge>}
+                                            </p>
+                                            <p className="truncate text-xs text-muted">{u.email}</p>
+                                            <div className="mt-1 flex flex-wrap items-center gap-1">
+                                                <Badge tone={ROLE_TONE[u.role] ?? "gray"}>{ROLE_LABEL[u.role as Role] ?? u.role}</Badge>
+                                                {u.mustChangePassword && <Badge tone="amber">รอเปลี่ยนรหัส</Badge>}
+                                                {/* มือถือ: ฝ่ายใต้ชื่อ */}
+                                                <span className="flex flex-wrap gap-1 md:hidden">
+                                                    {u.role !== "superadmin" && ((u.departments ?? []).length ? u.departments!.map((d) => <Badge key={d}>{d}</Badge>) : <Badge tone="amber">ไม่มีฝ่าย</Badge>)}
+                                                </span>
+                                            </div>
+                                        </div>
+                                        <div className="hidden w-56 flex-wrap gap-1 md:flex">
+                                            {u.role === "superadmin" ? <span className="text-xs text-muted">ทุกเมนู</span> : (u.departments ?? []).length ? u.departments!.map((d) => <Badge key={d}>{d}</Badge>) : <Badge tone="amber">ยังไม่มีฝ่าย</Badge>}
+                                        </div>
+                                        <span className="hidden w-32 items-center gap-1 text-xs text-muted lg:flex"><Clock className="size-3.5" /> {ago(u.lastLoginAt)}</span>
+                                        <ChevronRight className="size-5 shrink-0 text-muted" />
+                                    </div>
+                                );
+                            })}
+                        </Section>
+                    )}
+                    {users && filtered.length > perPage && (
+                        <div className="flex justify-end">
+                            <Pagination currentPage={page} totalPages={totalPages} itemsPerPage={perPage} totalItems={filtered.length} onPageChange={setPage} onItemsPerPageChange={setPerPage} />
+                        </div>
+                    )}
+                </>
             )}
 
-            {/* 1. Top Header Section */}
-            <div className="flex items-center justify-between px-1">
-                <div>
-                    <h2 className="text-xl font-bold text-slate-800 dark:text-white flex items-center gap-2">
-                        <div className="w-1.5 h-6 bg-sky-500 rounded-full" />
-                        การจัดการผู้ใช้
-                    </h2>
-                </div>
-                <div className="flex gap-2">
-                    <Link
-                        href="/admin/users/create"
-                        className="cursor-pointer flex items-center gap-1.5 bg-sky-500 hover:bg-sky-600 text-white px-3 sm:px-4 py-1.5 rounded-lg text-xs font-bold shadow-md transition-all active:scale-95"
-                    >
-                        <Plus size={16} />
-                        <span className="inline sm:hidden">เพิ่ม</span>
-                        <span className="hidden sm:inline">เพิ่มผู้ใช้งานใหม่</span>
-                    </Link>
-                </div>
-            </div>
-
-            {/* 2. STICKY TOOLBAR */}
-            <div className="top-0 z-30 bg-white/95 dark:bg-slate-950/95 backdrop-blur-md border border-slate-200 dark:border-slate-800 p-3 rounded-xl shadow-sm mb-4">
-                <div className="flex flex-col lg:flex-row justify-between items-center gap-4">
-                    <div className="relative w-full lg:w-96">
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-                        <input
-                            type="text"
-                            placeholder="ค้นหา ชื่อ, อีเมล, เบอร์โทร..."
-                            value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
-                            className="w-full pl-10 pr-4 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-sm outline-none focus:ring-1 focus:ring-sky-500"
-                        />
-                    </div>
-
-                    <div className="flex items-center gap-4 w-full lg:w-auto justify-between lg:justify-end">
-                        <div className="flex items-center gap-2 text-xs font-bold text-slate-500">
-                            <span>แสดง:</span>
-                            <select
-                                value={itemsPerPage}
-                                onChange={(e) => { setItemsPerPage(Number(e.target.value)); setCurrentPage(1); }}
-                                className="bg-slate-100 dark:bg-slate-800 border-none rounded px-2 py-1 text-sky-600 outline-none"
-                            >
-                                {[10, 20, 50, 100].map(val => <option key={val} value={val}>{val}</option>)}
-                            </select>
-                        </div>
-
-                        <div className="flex items-center gap-1">
-                            <button disabled={currentPage === 1} onClick={() => setCurrentPage(1)} className="p-1.5 hover:bg-slate-100 rounded disabled:opacity-30"><ChevronsLeft size={16} /></button>
-                            <button disabled={currentPage === 1} onClick={() => setCurrentPage(prev => prev - 1)} className="p-1.5 hover:bg-slate-100 rounded disabled:opacity-30"><ChevronLeft size={16} /></button>
-                            <span className="mx-2 text-xs font-bold text-sky-600">หน้า {currentPage} / {totalPages || 1}</span>
-                            <button disabled={currentPage === totalPages || totalPages === 0} onClick={() => setCurrentPage(prev => prev + 1)} className="p-1.5 hover:bg-slate-100 rounded disabled:opacity-30"><ChevronRight size={16} /></button>
-                            <button disabled={currentPage === totalPages || totalPages === 0} onClick={() => setCurrentPage(totalPages)} className="p-1.5 hover:bg-slate-100 rounded disabled:opacity-30"><ChevronsRight size={16} /></button>
-                        </div>
+            {/* แถบจัดการหลายคน */}
+            {sel.size > 0 && view === "list" && (
+                <div className="fixed inset-x-3 bottom-24 z-30 mx-auto flex max-w-3xl flex-wrap items-center gap-2 rounded-2xl border border-line bg-surface p-2.5 shadow-pop lg:bottom-6 lg:left-[300px]">
+                    <span className="flex items-center gap-1.5 pl-1 text-sm font-bold text-fg"><Users className="size-4 text-primary" /> เลือก {sel.size} คน</span>
+                    <div className="ml-auto flex flex-wrap items-center gap-2">
+                        {bulkBusy && <Loader2 className="size-4 animate-spin text-primary" />}
+                        <select className="field h-9 w-auto py-1 text-sm" value="" disabled={bulkBusy} onChange={(e) => bulk("add-department", e.target.value)} aria-label="เพิ่มเข้าฝ่าย">
+                            <option value="">+ เพิ่มเข้าฝ่าย…</option>
+                            {deptNames.map((d) => <option key={d} value={d}>{d}</option>)}
+                        </select>
+                        <select className="field h-9 w-auto py-1 text-sm" value="" disabled={bulkBusy} onChange={(e) => bulk("remove-department", e.target.value)} aria-label="เอาออกจากฝ่าย">
+                            <option value="">− เอาออกจากฝ่าย…</option>
+                            {deptNames.map((d) => <option key={d} value={d}>{d}</option>)}
+                        </select>
+                        <select className="field h-9 w-auto py-1 text-sm" value="" disabled={bulkBusy} onChange={(e) => bulk("set-role", e.target.value)} aria-label="เปลี่ยนบทบาท">
+                            <option value="">เปลี่ยนบทบาท…</option>
+                            {(["admin", "user", "superadmin"] as Role[]).map((r) => <option key={r} value={r}>{ROLE_LABEL[r]}</option>)}
+                        </select>
+                        <button type="button" onClick={sel.clear} className="grid size-9 place-items-center rounded-lg text-muted hover:bg-surface-2" aria-label="ยกเลิกการเลือก">
+                            <X className="size-4" />
+                        </button>
                     </div>
                 </div>
-            </div>
+            )}
 
-            {/* 3. TABLE AREA */}
-            <div className="bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl shadow-sm overflow-hidden">
-                <div className="hidden overflow-x-auto custom-scrollbar pb-2 md:block">
-                    <table className="w-full min-w-[1020px] table-fixed border-collapse text-left">
-                        <thead className="z-20 bg-slate-50 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 text-[11px] uppercase tracking-wider text-slate-500 font-bold">
-                            <tr>
-                                <th className="px-4 py-3 w-16 text-center">#</th>
-                                <th className="px-6 py-3 w-1/4">ผู้ใช้งาน <ArrowUpDown size={10} className="inline ml-1" /></th>
-                                <th className="px-6 py-3">ติดต่อ</th>
-                                <th className="px-6 py-3 w-48 text-center font-medium">สังกัดฝ่าย</th>
-                                <th className="px-6 py-3 w-32 text-center font-medium">บทบาท</th>
-                                <th className="px-6 py-3 w-40 text-center">เข้าใช้งานล่าสุด</th>
-                                <th className="px-6 py-3 w-28 text-right pr-8 sticky right-0 bg-slate-50 dark:bg-slate-900 border-l border-slate-200 shadow-[-4px_0_10px_rgba(0,0,0,0.02)]">จัดการ</th>
-                            </tr>
-                        </thead>
-                        <tbody className="text-[13px] divide-y divide-slate-100 dark:divide-slate-800">
-                            {error ? (
-                                <tr>
-                                    <td colSpan={7} className="text-center py-10 text-red-500 bg-red-50/50">
-                                        <div className="flex flex-col items-center justify-center gap-2">
-                                            <span className="font-bold">เกิดข้อผิดพลาดในการโหลดข้อมูล</span>
-                                            <span className="text-xs text-red-400">{error}</span>
-                                            <button
-                                                onClick={refresh}
-                                                className="mt-2 px-4 py-1.5 bg-white border border-red-200 text-red-500 rounded-md hover:bg-red-50 transition-colors shadow-sm text-xs font-bold"
-                                            >
-                                                ลองใหม่อีกครั้ง
-                                            </button>
-                                        </div>
-                                    </td>
-                                </tr>
-                            ) : isPageLoading ? (
-                                [...Array(6)].map((_, i) => (
-                                    <tr key={i} className="bg-white dark:bg-slate-950 border-b border-slate-100 dark:border-slate-800">
-                                        <td className="px-4 py-4 text-center"><Skeleton className="h-4 w-4 mx-auto" /></td>
-                                        <td className="px-6 py-4">
-                                            <div className="flex items-center gap-3">
-                                                <Skeleton className="h-9 w-9 rounded-full" />
-                                                <div className="space-y-1">
-                                                    <Skeleton className="h-4 w-24" />
-                                                    <Skeleton className="h-3 w-16" />
-                                                </div>
-                                            </div>
-                                        </td>
-                                        <td className="px-6 py-4 space-y-1">
-                                            <Skeleton className="h-3 w-32" />
-                                            <Skeleton className="h-3 w-24" />
-                                        </td>
-                                        <td className="px-6 py-4 text-center"><Skeleton className="h-6 w-16 mx-auto rounded-full" /></td>
-                                        <td className="px-6 py-4 text-center"><Skeleton className="h-6 w-20 mx-auto rounded" /></td>
-                                        <td className="px-6 py-4 text-center"><Skeleton className="h-4 w-28 mx-auto" /></td>
-                                        <td className="px-6 py-4 text-right">
-                                            <div className="flex justify-end gap-2">
-                                                <Skeleton className="h-8 w-8 rounded-lg" />
-                                                <Skeleton className="h-8 w-8 rounded-lg" />
-                                            </div>
-                                        </td>
-                                    </tr>
-                                ))
-                            ) : users.length === 0 ? (
-                                <tr>
-                                    <td colSpan={7} className="text-center py-10 text-slate-400">ไม่พบข้อมูลผู้ใช้งาน</td>
-                                </tr>
-                            ) : (
-                                users.map((userItem, index) => (
-                                    <tr
-                                        key={userItem._id}
-                                        className={`group border-y transition-colors ${user?._id === userItem._id
-                                            ? 'border-y-2 border-emerald-300 bg-emerald-50/60 dark:border-emerald-800 dark:bg-emerald-950/20'
-                                            : `${index % 2 === 0 ? 'border-transparent bg-white dark:bg-slate-950' : 'border-transparent bg-[#f8fafc] dark:bg-[#0f172a]'} hover:bg-sky-50/30`}`}
-                                    >
-                                        <td className="px-4 py-4 text-center font-medium text-slate-500">
-                                            {((currentPage - 1) * itemsPerPage) + index + 1}
-                                        </td>
-                                        <td className="px-6 py-4">
-                                            <div className="flex items-center gap-3">
-                                                <div className="h-9 w-9 rounded-full bg-sky-100 border border-sky-200 flex items-center justify-center text-sky-600 font-bold text-xs uppercase shadow-sm">
-                                                    {userItem.firstName?.charAt(0)}{userItem.lastName?.charAt(0)}
-                                                </div>
-                                                <div>
-                                                    <div className="font-bold text-slate-700 dark:text-slate-200">{userItem.firstName} {userItem.lastName}</div>
-                                                    <div className="text-[10px] text-slate-400">สร้างเมื่อ {formatDate(userItem.createdAt).split(' ').slice(0, 3).join(' ')}</div>
-                                                </div>
-                                            </div>
-                                        </td>
-                                        <td className="px-6 py-4 text-slate-600 dark:text-slate-400 space-y-0.5 font-medium">
-                                            <div className="flex items-center gap-1.5"><Mail size={12} className="text-sky-400" /> {userItem.email}</div>
-                                            <div className="flex items-center gap-1.5 text-slate-400 text-xs"><Phone size={12} /> {userItem.phoneNumber || "-"}</div>
-                                        </td>
-                                        <td className="px-6 py-4 text-center">
-                                            {userItem.departments && userItem.departments.length > 0 ? (
-                                                <div className="flex flex-wrap gap-1.5 justify-center">
-                                                    {userItem.departments.map(d => (
-                                                        <span key={d} className="inline-flex px-2 py-0.5 rounded-lg text-xs font-bold bg-blue-50 text-blue-600 border border-blue-200 dark:bg-blue-900/30 dark:text-blue-400 dark:border-blue-800/50">
-                                                            {d}
-                                                        </span>
-                                                    ))}
-                                                </div>
-                                            ) : (
-                                                <span className="text-slate-300 dark:text-slate-600 text-xs">-</span>
-                                            )}
-                                        </td>
-                                        <td className="px-6 py-4 text-center">
-                                            <div className="flex flex-col gap-2 items-center">
-                                                <span className={`inline-flex px-2 py-1 rounded text-[10px] font-black uppercase border ${userItem.role === 'superadmin' ? 'bg-purple-50 text-purple-600 border-purple-100' :
-                                                    userItem.role === 'admin' ? 'bg-indigo-50 text-indigo-600 border-indigo-100' :
-                                                        'bg-slate-50 text-slate-500 border-slate-100'
-                                                    }`}>
-                                                    {userItem.role}
-                                                </span>
-                                            </div>
-                                        </td>
-                                        <td className="px-6 py-4 text-center text-slate-400 font-medium text-xs">
-                                            {formatDate(userItem.lastLoginAt!) || "-"}
-                                        </td>
-
-                                        <td className={`px-6 py-4 text-right pr-6 sticky right-0 transition-colors shadow-[-4px_0_10px_rgba(0,0,0,0.02)] ${user?._id === userItem._id
-                                            ? 'bg-emerald-50 dark:bg-emerald-950/30'
-                                            : `${index % 2 === 0 ? 'border-slate-100 bg-white dark:bg-slate-950' : 'border-slate-100 bg-slate-50 dark:bg-slate-900'} group-hover:bg-sky-50 dark:group-hover:bg-slate-800`}`}>
-                                            <div className="flex justify-end gap-1.5 relative z-20">
-                                                {user?._id === userItem._id ? (
-                                                    <span className="inline-flex min-w-[104px] items-center justify-center gap-2 whitespace-nowrap rounded-xl border-2 border-emerald-500 bg-emerald-50 px-3 py-2 text-xs font-bold text-emerald-700 shadow-sm shadow-emerald-100 dark:border-emerald-400 dark:bg-emerald-950/30 dark:text-emerald-300 dark:shadow-none">
-                                                        <span className="h-2 w-2 rounded-full bg-emerald-500 shadow-[0_0_0_3px_rgba(16,185,129,0.15)]" aria-hidden="true" />
-                                                        กำลังใช้งาน
-                                                    </span>
-                                                ) : (
-                                                    <>
-                                                        <Link href={"/admin/users/edit/" + userItem._id} aria-label={"แก้ไขผู้ใช้ " + userItem.email} className="cursor-pointer rounded-lg border border-transparent p-1.5 text-sky-600 shadow-sm transition-colors hover:border-sky-100 hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500"><Edit2 size={14} aria-hidden="true" /></Link>
-                                                        <button type="button" onClick={() => handleDeleteClick(userItem)} aria-label={"ลบผู้ใช้ " + userItem.email} className="cursor-pointer rounded-lg p-1.5 text-rose-500 transition-colors hover:bg-rose-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-500"><Trash2 size={14} aria-hidden="true" /></button>
-                                                    </>
-                                                )}
-                                            </div>
-                                        </td>
-                                    </tr>
-                                ))
-                            )}
-                        </tbody>
-                    </table>
-                </div>
-
-                <div className="space-y-3 p-3 md:hidden">
-                    {error ? (
-                        <div className="rounded-xl border border-rose-200 bg-rose-50 p-5 text-center text-rose-600 dark:border-rose-900/50 dark:bg-rose-950/20 dark:text-rose-400">
-                            <p className="font-bold">เกิดข้อผิดพลาดในการโหลดข้อมูล</p>
-                            <p className="mt-1 text-xs">{error}</p>
-                            <button type="button" onClick={refresh} className="mt-3 rounded-lg border border-rose-200 bg-white px-4 py-2 text-xs font-bold text-rose-600 shadow-sm hover:bg-rose-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-500 dark:border-rose-900 dark:bg-slate-950">
-                                ลองใหม่อีกครั้ง
-                            </button>
-                        </div>
-                    ) : isPageLoading ? (
-                        [...Array(5)].map((_, index) => (
-                            <div key={index} className="rounded-2xl border border-slate-200 p-4 dark:border-slate-800">
-                                <div className="flex items-center gap-3">
-                                    <Skeleton className="h-11 w-11 rounded-full" />
-                                    <div className="flex-1 space-y-2">
-                                        <Skeleton className="h-4 w-32" />
-                                        <Skeleton className="h-3 w-44 max-w-full" />
-                                    </div>
-                                    <Skeleton className="h-7 w-16 rounded-lg" />
-                                </div>
-                                <div className="mt-4 grid grid-cols-2 gap-3">
-                                    <Skeleton className="h-4 w-24" />
-                                    <Skeleton className="h-4 w-28 justify-self-end" />
-                                </div>
-                            </div>
-                        ))
-                    ) : users.length === 0 ? (
-                        <div className="rounded-xl border border-dashed border-slate-200 py-12 text-center text-sm text-slate-400 dark:border-slate-800">
-                            ไม่พบข้อมูลผู้ใช้งาน
-                        </div>
-                    ) : (
-                        users.map((userItem, index) => {
-                            const isCurrentUser = user?._id === userItem._id;
-                            const displayName = [userItem.firstName, userItem.lastName].filter(Boolean).join(" ") || userItem.email;
-                            const roleClass = userItem.role === "superadmin"
-                                ? "border-purple-200 bg-purple-50 text-purple-700 dark:border-purple-900/60 dark:bg-purple-950/30 dark:text-purple-300"
-                                : userItem.role === "admin"
-                                    ? "border-indigo-200 bg-indigo-50 text-indigo-700 dark:border-indigo-900/60 dark:bg-indigo-950/30 dark:text-indigo-300"
-                                    : "border-slate-200 bg-slate-50 text-slate-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300";
-                            return (
-                                <article key={userItem._id} className={"rounded-2xl border-2 p-4 shadow-sm transition-shadow hover:shadow-md " + (isCurrentUser
-                                    ? "border-emerald-400 bg-emerald-50/50 dark:border-emerald-800 dark:bg-emerald-950/20"
-                                    : "border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-950")}>
-                                    <div className="flex items-start gap-3">
-                                        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-sky-200 bg-sky-100 text-sm font-bold uppercase text-sky-700 dark:border-sky-900 dark:bg-sky-950/50 dark:text-sky-300">
-                                            {userItem.firstName?.charAt(0)}{userItem.lastName?.charAt(0)}
-                                        </div>
-                                        <div className="min-w-0 flex-1">
-                                            <div className="flex items-start justify-between gap-2">
-                                                <div className="min-w-0">
-                                                    <h3 className="truncate font-bold text-slate-800 dark:text-slate-100">{displayName}</h3>
-                                                    <p className="mt-0.5 truncate text-xs text-slate-500 dark:text-slate-400">{userItem.email}</p>
-                                                </div>
-                                                <span className="shrink-0 text-xs font-bold text-slate-400">#{((currentPage - 1) * itemsPerPage) + index + 1}</span>
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    <div className="mt-4 grid grid-cols-2 gap-3 border-y border-slate-100 py-3 text-xs dark:border-slate-800">
-                                        <div className="min-w-0">
-                                            <p className="text-slate-400">เบอร์โทร</p>
-                                            <p className="mt-1 truncate font-semibold text-slate-700 dark:text-slate-200">{userItem.phoneNumber || "-"}</p>
-                                        </div>
-                                        <div className="min-w-0 text-right">
-                                            <p className="text-slate-400">เข้าใช้งานล่าสุด</p>
-                                            <p className="mt-1 truncate font-semibold text-slate-700 dark:text-slate-200">{formatDate(userItem.lastLoginAt!) || "-"}</p>
-                                        </div>
-                                    </div>
-
-                                    <div className="flex flex-wrap items-center justify-between gap-2">
-                                        <div className="flex flex-wrap gap-1.5">
-                                            <span className={"inline-flex rounded-lg border px-2 py-1 text-[10px] font-black uppercase " + roleClass}>{userItem.role}</span>
-                                            {userItem.departments?.slice(0, 2).map((department) => (
-                                                <span key={department} className="inline-flex max-w-[140px] truncate rounded-lg border border-sky-200 bg-sky-50 px-2 py-1 text-[10px] font-bold text-sky-700 dark:border-sky-900/60 dark:bg-sky-950/30 dark:text-sky-300">
-                                                    {department}
-                                                </span>
-                                            ))}
-                                            {(userItem.departments?.length ?? 0) > 2 && <span className="px-1 py-1 text-[10px] font-bold text-slate-400">+{userItem.departments!.length - 2}</span>}
-                                        </div>
-                                        {isCurrentUser ? (
-                                            <span className="inline-flex items-center gap-2 rounded-xl border-2 border-emerald-500 bg-emerald-50 px-3 py-2 text-xs font-bold text-emerald-700 shadow-sm shadow-emerald-100 dark:border-emerald-400 dark:bg-emerald-950/30 dark:text-emerald-300 dark:shadow-none">
-                                                <span className="h-2 w-2 rounded-full bg-emerald-500" aria-hidden="true" />
-                                                กำลังใช้งาน
-                                            </span>
-                                        ) : (
-                                            <div className="flex items-center gap-1.5">
-                                                <Link href={"/admin/users/edit/" + userItem._id} aria-label={"แก้ไขผู้ใช้ " + userItem.email} className="rounded-lg border border-sky-100 p-2 text-sky-600 hover:bg-sky-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500 dark:border-sky-900/60 dark:hover:bg-sky-950/40">
-                                                    <Edit2 size={15} aria-hidden="true" />
-                                                </Link>
-                                                <button type="button" onClick={() => handleDeleteClick(userItem)} aria-label={"ลบผู้ใช้ " + userItem.email} className="rounded-lg border border-rose-100 p-2 text-rose-500 hover:bg-rose-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-500 dark:border-rose-900/60 dark:hover:bg-rose-950/30">
-                                                    <Trash2 size={15} aria-hidden="true" />
-                                                </button>
-                                            </div>
-                                        )}
-                                    </div>
-                                </article>
-                            );
-                        })
-                    )}
-                </div>
-            </div>
-
-            {/* 4. Bottom Statistics Info */}
-            <div className="p-4 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl flex justify-center items-center text-xs font-bold text-slate-400 uppercase tracking-widest shadow-sm">
-                <span>Total Records Found: {total}</span>
-            </div>
+            <UserDrawer
+                user={opened}
+                isSelf={opened?._id === me?._id}
+                map={map}
+                onMapChange={setMap}
+                onChanged={patchLocal}
+                onClose={() => setOpenId(null)}
+                onDelete={(u) => setToDelete(u)}
+            />
+            <CreateUserModal open={creating} onClose={() => setCreating(false)} onCreated={load} map={map} onMapChange={setMap} />
+            {toDelete && (
+                <DeleteUserModal
+                    isOpen
+                    onClose={() => setToDelete(null)}
+                    onSuccess={() => {
+                        setToDelete(null);
+                        setOpenId(null);
+                        void load();
+                    }}
+                    userIdToDelete={toDelete._id}
+                    userNameToDelete={fullName(toDelete)}
+                />
+            )}
         </div>
+    );
+}
+
+export default function UsersPage() {
+    return (
+        <Suspense fallback={<Skeleton className="h-96 rounded-3xl" />}>
+            <UsersInner />
+        </Suspense>
     );
 }

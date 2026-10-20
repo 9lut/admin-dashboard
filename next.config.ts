@@ -9,6 +9,11 @@ const nextConfig: NextConfig = {
   // firebase-admin/sharp breaks them at runtime on Vercel (500 on every route).
   serverExternalPackages: ['firebase-admin', '@google-cloud/firestore', 'sharp'],
 
+  // import เฉพาะไอคอน/ฟังก์ชันที่ใช้จริง (ลดขนาด bundle หน้าแอดมิน)
+  experimental: {
+    optimizePackageImports: ['lucide-react', 'recharts', 'date-fns', '@tiptap/react'],
+  },
+
   images: {
     remotePatterns: [
       {

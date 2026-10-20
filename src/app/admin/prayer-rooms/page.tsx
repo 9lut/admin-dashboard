@@ -1,251 +1,195 @@
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
-import {
-    Plus, Search, Edit2, Trash2,
-    ArrowUpDown, MapPin, Loader2, Building
-} from "lucide-react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { Building, Clock, ImageIcon, MapPin, Sparkles, Users } from "lucide-react";
 import { prayerRoomService } from "@/services/prayerRoomService";
-import { PrayerRoom } from "@/types/prayer-room";
-import Image from "next/image";
-import { Skeleton } from "@/app/components/ui/skeleton";
-import { useRouter } from "next/navigation";
-import Link from "next/link";
-
+import type { PrayerRoom } from "@/types/prayer-room";
 import DeleteModal from "@/app/components/ui/DeleteModal";
-import { Pagination, PaginationInfo } from "@/app/components/ui/Pagination";
-import { TableSkeleton } from "@/app/components/ui/TableSkeleton";
-import { SortableHeader, TableHeader } from "@/app/components/ui/SortableHeader";
-import { FilterBar } from "@/app/components/ui/FilterBar";
+import { Pagination } from "@/app/components/ui/Pagination";
 import { PageHeader } from "@/app/components/ui/PageHeader";
+import { ListToolbar, ToolbarSelect } from "@/app/components/ui/ListToolbar";
+import { Badge, EmptyState, Section } from "@/app/components/ui/kit";
+import { BulkBar, CARD_GRID, CardGridSkeleton, ContentCard, usePaged, useSelection } from "@/app/components/ui/list";
+import { includesAll, toTime } from "@/lib/format";
+import { handleApiError } from "@/lib/axios";
+import { toastUtils } from "@/lib/toast";
+import { batchDelete } from "@/lib/api/batch";
+
+const SORTS = [
+    { value: "name-asc", label: "ชื่อ ก → ฮ" },
+    { value: "capacity-desc", label: "จุคนมากสุด" },
+    { value: "created-desc", label: "เพิ่มล่าสุด" },
+];
+const uniq = (list: (string | undefined)[]) =>
+    [...new Set(list.map((s) => s?.trim()).filter(Boolean) as string[])].sort((a, b) => a.localeCompare(b, "th")).map((v) => ({ value: v, label: v }));
 
 export default function PrayerRoomsPage() {
-    const [prayerRooms, setPrayerRooms] = useState<PrayerRoom[]>([]);
+    const [rooms, setRooms] = useState<PrayerRoom[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState("");
-    const [refreshKey, setRefreshKey] = useState(0);
 
-    const [searchTerm, setSearchTerm] = useState("");
-    const [currentPage, setCurrentPage] = useState(1);
-    const [itemsPerPage, setItemsPerPage] = useState(10);
-    const [sortConfig, setSortConfig] = useState<{ key: keyof PrayerRoom; direction: 'asc' | 'desc' | null }>({ key: 'name', direction: 'asc' });
+    const [search, setSearch] = useState("");
+    const [faculty, setFaculty] = useState("");
+    const [facility, setFacility] = useState("");
+    const [image, setImage] = useState("");
+    const [sort, setSort] = useState("name-asc");
+    const [page, setPage] = useState(1);
+    const [perPage, setPerPage] = useState(20);
 
-    // Modal States
+    const sel = useSelection();
+    const [toDelete, setToDelete] = useState<PrayerRoom | "bulk" | null>(null);
+    const [deleting, setDeleting] = useState(false);
 
-    const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
-    const [prayerRoomToDelete, setPrayerRoomToDelete] = useState<PrayerRoom | null>(null);
-    const [isDeleting, setIsDeleting] = useState(false);
-
-    const fetchPrayerRooms = async () => {
+    const load = useCallback(async () => {
+        setLoading(true);
+        setError("");
         try {
-            setLoading(true);
-            const data = await prayerRoomService.getAll();
-            setPrayerRooms(data);
-        } catch (err) {
-            console.error("Failed to fetch prayer rooms:", err);
-            setError("Failed to load prayer rooms");
+            setRooms(await prayerRoomService.getAll());
+        } catch (e) {
+            setError(handleApiError(e));
         } finally {
             setLoading(false);
         }
-    };
-
+    }, []);
     useEffect(() => {
-        fetchPrayerRooms();
-    }, [refreshKey]);
+        void load();
+    }, [load]);
+    useEffect(() => setPage(1), [search, faculty, facility, image, sort, perPage]);
 
-    const router = useRouter();
+    const faculties = useMemo(() => uniq(rooms.map((r) => r.faculty)), [rooms]);
+    const facilities = useMemo(() => uniq(rooms.flatMap((r) => r.facilities ?? [])), [rooms]);
 
-    const handleAddClick = () => {
-        router.push('/admin/prayer-rooms/create');
-    };
+    const filtered = useMemo(() => {
+        const out = rooms.filter(
+            (r) =>
+                (!search || includesAll([r.name, r.name_th, r.name_en, r.place, r.detail, r.faculty, ...(r.facilities ?? [])], search)) &&
+                (!faculty || r.faculty?.trim() === faculty) &&
+                (!facility || (r.facilities ?? []).some((f) => f.trim() === facility)) &&
+                (!image || (image === "with" ? r.images?.length > 0 : !r.images?.length)),
+        );
+        const [k, d] = sort.split("-");
+        const s = d === "asc" ? 1 : -1;
+        return out.sort((a, b) =>
+            k === "capacity" ? s * ((a.capacity ?? 0) - (b.capacity ?? 0)) : k === "created" ? s * (toTime(a.createdAt) - toTime(b.createdAt)) : s * a.name.localeCompare(b.name, "th"),
+        );
+    }, [rooms, search, faculty, facility, image, sort]);
+    const { rows, totalPages, page: cur } = usePaged(filtered, page, perPage);
 
-    const handleDeleteClick = (room: PrayerRoom) => {
-        setPrayerRoomToDelete(room);
-        setIsDeleteModalOpen(true);
+    const clear = () => {
+        setSearch("");
+        setFaculty("");
+        setFacility("");
+        setImage("");
     };
 
     const confirmDelete = async () => {
-        if (!prayerRoomToDelete) return;
-        setIsDeleting(true);
+        if (!toDelete) return;
+        setDeleting(true);
+        const ids = toDelete === "bulk" ? [...sel.ids] : [toDelete._id];
         try {
-            await prayerRoomService.delete(prayerRoomToDelete._id as string);
-            setRefreshKey(prev => prev + 1);
-            setIsDeleteModalOpen(false);
-            setPrayerRoomToDelete(null);
-        } catch (error) {
-            console.error(error);
-            setError("Failed to delete prayer room");
-        } finally {
-            setIsDeleting(false);
+            // ลบในคำขอเดียว (รวมรูปบน R2) แทนการยิงทีละรายการ
+            const r = await batchDelete("prayer-rooms", ids);
+            if (r.notFound.length) toastUtils.warning("ลบแล้วบางส่วน", `ลบ ${r.deleted.length} รายการ · ไม่พบ ${r.notFound.length} รายการ (อาจถูกลบไปก่อนแล้ว)`);
+            else toastUtils.success("ย้ายไปถังขยะแล้ว", `ห้องละหมาด ${r.deleted.length} รายการ · กู้คืนได้ที่เมนูถังขยะภายใน 30 วัน`);
+        } catch (e) {
+            toastUtils.error("ลบไม่สำเร็จ", handleApiError(e));
         }
-    };
-
-    const processedRooms = useMemo(() => {
-        let items = [...prayerRooms].filter(r =>
-            r.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            r.place.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            r.detail.toLowerCase().includes(searchTerm.toLowerCase())
-        );
-
-        if (sortConfig.direction !== null) {
-            items.sort((a, b) => {
-                // @ts-ignore
-                const aValue = a[sortConfig.key] || "";
-                // @ts-ignore
-                const bValue = b[sortConfig.key] || "";
-
-                if (aValue < bValue) return sortConfig.direction === 'asc' ? -1 : 1;
-                if (aValue > bValue) return sortConfig.direction === 'asc' ? 1 : -1;
-                return 0;
-            });
-        }
-        return items;
-    }, [prayerRooms, searchTerm, sortConfig]);
-
-    const totalPages = Math.ceil(processedRooms.length / itemsPerPage);
-    const currentItems = processedRooms.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
-
-    const requestSort = (key: keyof PrayerRoom) => {
-        let direction: 'asc' | 'desc' | null = 'asc';
-        if (sortConfig.key === key && sortConfig.direction === 'asc') direction = 'desc';
-        else if (sortConfig.key === key && sortConfig.direction === 'desc') direction = null;
-        setSortConfig({ key, direction });
+        sel.clear();
+        setToDelete(null);
+        setDeleting(false);
+        void load();
     };
 
     return (
-        <div className="w-full space-y-4 pb-32">
+        <div className="w-full space-y-5">
+            <PageHeader title="ห้องละหมาด" description="ข้อมูลห้องละหมาดในมหาวิทยาลัยพร้อมแผนที่" art="prayer-room" action={{ label: "เพิ่มห้องละหมาด", href: "/admin/prayer-rooms/create" }} />
 
+            <ListToolbar
+                search={search}
+                onSearch={setSearch}
+                placeholder="ค้นหาชื่อ, สถานที่, คณะ, สิ่งอำนวยความสะดวก…"
+                activeFilters={[faculty, facility, image].filter(Boolean).length}
+                onClear={clear}
+                filters={
+                    <>
+                        <ToolbarSelect label="คณะ/หน่วยงาน" value={faculty} onChange={setFaculty} allLabel="ทุกคณะ" options={faculties} icon={<Building className="size-4" />} />
+                        <ToolbarSelect label="สิ่งอำนวยความสะดวก" value={facility} onChange={setFacility} allLabel="สิ่งอำนวยความสะดวก" options={facilities} icon={<Sparkles className="size-4" />} />
+                        <ToolbarSelect label="รูปภาพ" value={image} onChange={setImage} allLabel="รูปทั้งหมด" icon={<ImageIcon className="size-4" />} options={[{ value: "with", label: "มีรูป" }, { value: "without", label: "ไม่มีรูป" }]} />
+                    </>
+                }
+                sort={{ value: sort, onChange: setSort, options: SORTS }}
+                summary={!loading && !error && `พบ ${filtered.length.toLocaleString()} จาก ${rooms.length.toLocaleString()} ห้อง`}
+            />
+
+            {error ? (
+                <Section>
+                    <EmptyState art="prayer-room" title="โหลดข้อมูลไม่สำเร็จ" description={error} action={<button type="button" className="btn-primary" onClick={load}>ลองใหม่</button>} />
+                </Section>
+            ) : loading ? (
+                <CardGridSkeleton />
+            ) : filtered.length === 0 ? (
+                <Section>
+                    <EmptyState
+                        art="prayer-room"
+                        title={rooms.length ? "ไม่พบห้องที่ตรงกับตัวกรอง" : "ยังไม่มีห้องละหมาด"}
+                        description={rooms.length ? "ลองเปลี่ยนคำค้นหรือล้างตัวกรอง" : "เพิ่มห้องละหมาดแรกพร้อมตำแหน่งบนแผนที่"}
+                        action={rooms.length ? <button type="button" className="btn-secondary" onClick={clear}>ล้างตัวกรอง</button> : undefined}
+                    />
+                </Section>
+            ) : (
+                <>
+                    <div className={CARD_GRID}>
+                        {rows.map((r) => (
+                            <ContentCard
+                                key={r._id}
+                                image={r.images?.[0]}
+                                title={r.name}
+                                subtitle={
+                                    <span className="flex items-center gap-1">
+                                        <MapPin className="size-3 shrink-0" /> <span className="truncate">{[r.place, r.faculty].filter(Boolean).join(" · ") || "—"}</span>
+                                    </span>
+                                }
+                                meta={
+                                    <span className="flex items-center gap-2">
+                                        {r.openingHours && (
+                                            <span className="flex min-w-0 items-center gap-1 truncate">
+                                                <Clock className="size-3 shrink-0" /> {r.openingHours}
+                                            </span>
+                                        )}
+                                    </span>
+                                }
+                                badges={
+                                    r.capacity ? (
+                                        <Badge className="bg-surface/90 shadow-sm">
+                                            <Users className="size-3" /> {r.capacity}
+                                        </Badge>
+                                    ) : undefined
+                                }
+                                art="prayer-room"
+                                editHref={`/admin/prayer-rooms/edit/${r._id}`}
+                                onDelete={() => setToDelete(r)}
+                                selected={sel.has(r._id)}
+                                onSelect={() => sel.toggle(r._id)}
+                            />
+                        ))}
+                    </div>
+                    <div className="flex justify-end">
+                        <Pagination currentPage={cur} totalPages={totalPages} itemsPerPage={perPage} totalItems={filtered.length} onPageChange={setPage} onItemsPerPageChange={setPerPage} />
+                    </div>
+                </>
+            )}
+
+            <BulkBar count={sel.size} pageIds={rows.map((r) => r._id)} selection={sel} onDelete={() => setToDelete("bulk")} />
             <DeleteModal
-                isOpen={isDeleteModalOpen}
-                onClose={() => setIsDeleteModalOpen(false)}
+                isOpen={!!toDelete}
+                onClose={() => setToDelete(null)}
                 onConfirm={confirmDelete}
-                title="ยืนยันการลบห้องละหมาด"
-                description="คุณแน่ใจหรือไม่ที่จะลบห้องละหมาด"
-                itemName={prayerRoomToDelete?.name || ""}
-                isDeleting={isDeleting}
+                isDeleting={deleting}
+                recoverable
+                title={toDelete === "bulk" ? `ลบห้องละหมาด ${sel.size} รายการ?` : "ลบห้องละหมาดนี้?"}
+                description="รูปภาพของห้องจะถูกลบไปด้วย"
+                itemName={toDelete && toDelete !== "bulk" ? toDelete.name : undefined}
             />
-
-            {/* Headers */}
-            <PageHeader
-                title="จัดการห้องละหมาด"
-                colorClass="bg-emerald-500"
-                action={{
-                    label: "เพิ่มห้องละหมาด",
-                    onClick: handleAddClick
-                }}
-            />
-
-            {/* Controls */}
-            <div className="bg-white dark:bg-slate-950 p-4 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm">
-                <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
-                    <FilterBar
-                        searchTerm={searchTerm}
-                        onSearchChange={setSearchTerm}
-                        placeholder="ค้นหา ชื่อ, สถานที่, รายละเอียด..."
-                        className="w-full lg:w-auto mb-0"
-                    />
-
-                    <Pagination
-                        currentPage={currentPage}
-                        totalPages={totalPages}
-                        itemsPerPage={itemsPerPage}
-                        totalItems={processedRooms.length}
-                        onPageChange={setCurrentPage}
-                        onItemsPerPageChange={setItemsPerPage}
-                    />
-                </div>
-            </div>
-
-            {/* Table */}
-            <div className="bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl shadow-sm overflow-hidden mt-0">
-                <div className="overflow-x-auto custom-scrollbar pb-2">
-                    <table className="w-full text-left border-collapse table-fixed min-w-[950px]">
-                        <thead className="z-20 bg-slate-50 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 text-[11px] uppercase tracking-wider text-slate-500 font-bold">
-                            <tr>
-                                <TableHeader label="#" className="w-16 text-center" />
-                                <TableHeader label="รูปภาพ" className="w-20 text-center" />
-                                <SortableHeader label="ชื่อห้องละหมาด" sortKey="name" currentSort={sortConfig} onSort={requestSort} className="w-1/5" />
-                                <SortableHeader label="สถานที่ตั้ง" sortKey="place" currentSort={sortConfig} onSort={requestSort} className="w-[20%]" />
-                                <TableHeader label="รายละเอียด" className="w-[25%]" />
-                                <TableHeader label="สิ่งอำนวยความสะดวก" className="w-[15%]" />
-                                <th className="px-6 py-3 w-28 text-right pr-8 sticky right-0 z-20 bg-slate-50 dark:bg-slate-900 border-l border-slate-200 shadow-[-4px_0_10px_rgba(0,0,0,0.02)]">จัดการ</th>
-                            </tr>
-                        </thead>
-                        <tbody className="text-[13px] divide-y divide-slate-100 dark:divide-slate-800">
-                            {loading ? (
-                                <TableSkeleton columns={6} />
-                            ) : error ? (
-                                <tr>
-                                    <td colSpan={6} className="text-center py-10 text-red-500">{error}</td>
-                                </tr>
-                            ) : currentItems.length === 0 ? (
-                                <tr>
-                                    <td colSpan={6} className="text-center py-10 text-slate-400">ไม่พบข้อมูลห้องละหมาด</td>
-                                </tr>
-                            ) : (
-                                currentItems.map((room, index) => (
-                                    <tr
-                                        key={room._id}
-                                        className={`group transition-colors ${index % 2 === 0 ? 'bg-white dark:bg-slate-950' : 'bg-[#f8fafc] dark:bg-[#0f172a]'} hover:bg-emerald-50`}
-                                    >
-                                        <td className="px-4 py-4 text-center font-medium text-slate-500">
-                                            {((currentPage - 1) * itemsPerPage) + index + 1}
-                                        </td>
-                                        <td className="px-6 py-4">
-                                            <div className="h-10 w-16 relative rounded-md overflow-hidden bg-slate-100 border border-slate-200">
-                                                {room.images && room.images.length > 0 ? (
-                                                    <Image
-                                                        src={room.images[0]}
-                                                        alt={room.name}
-                                                        fill
-                                                        className="object-cover"
-                                                        sizes="64px"
-                                                    />
-                                                ) : (
-                                                    <div className="flex items-center justify-center h-full text-slate-300"><Building size={16} /></div>
-                                                )}
-                                            </div>
-                                        </td>
-                                        <td className="px-6 py-4">
-                                            <div className="font-bold text-slate-700 dark:text-slate-200 line-clamp-1">{room.name}</div>
-                                            {room.faculty && <div className="text-[10px] text-slate-400 line-clamp-1">{room.faculty}</div>}
-                                        </td>
-                                        <td className="px-6 py-4 text-slate-600 dark:text-slate-400">
-                                            <div className="flex items-center gap-1.5">
-                                                <MapPin size={12} className="text-emerald-400 shrink-0" />
-                                                <span className="truncate">{room.place}</span>
-                                            </div>
-                                        </td>
-                                        <td className="px-6 py-4 text-slate-600 dark:text-slate-400">
-                                            <div className="line-clamp-2">{room.detail}</div>
-                                        </td>
-                                        <td className="px-6 py-4 text-slate-600 dark:text-slate-400">
-                                            <div className="flex flex-wrap gap-1">
-                                                {room.facilities?.slice(0, 2).map((item, i) => (
-                                                    <span key={i} className="px-1.5 py-0.5 bg-slate-100 dark:bg-slate-800 rounded text-[10px] border border-slate-200 dark:border-slate-700 whitespace-nowrap">
-                                                        {item}
-                                                    </span>
-                                                ))}
-                                                {room.facilities?.length > 2 && (
-                                                    <span className="px-1.5 py-0.5 text-[10px] text-slate-400">+{room.facilities.length - 2}</span>
-                                                )}
-                                            </div>
-                                        </td>
-                                        <td className={`px-6 py-4 text-right pr-8 sticky right-0 z-10 border-l border-slate-100 transition-colors shadow-[-4px_0_10px_rgba(0,0,0,0.02)] ${index % 2 === 0 ? 'bg-white dark:bg-slate-950' : 'bg-slate-50 dark:bg-slate-900'} group-hover:bg-emerald-50 dark:group-hover:bg-slate-800`}>
-                                            <div className="flex justify-end gap-1.5 relative z-20">
-                                                <Link href={`/admin/prayer-rooms/edit/${room._id}`} className="cursor-pointer p-1.5 text-sky-600 hover:bg-white rounded shadow-sm border border-transparent hover:border-sky-100 transition-all"><Edit2 size={14} /></Link>
-                                                <button onClick={() => handleDeleteClick(room)} className="cursor-pointer p-1.5 text-rose-500 hover:bg-rose-50 rounded transition-all"><Trash2 size={14} /></button>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                ))
-                            )}
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-
-            <PaginationInfo totalItems={processedRooms.length} />
         </div>
     );
 }

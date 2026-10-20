@@ -78,10 +78,10 @@ export default function ForgotPasswordPage() {
                     </div>
 
                     <h2 className="mt-6 text-3xl font-black text-sky-500 dark:text-sky-400 tracking-tight">
-                        Reset <span className="text-slate-900 dark:text-white"> Password</span> <ThemeToggle />
+                        Reset <span className="text-fg"> Password</span> <ThemeToggle />
                     </h2>
 
-                    <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
+                    <p className="mt-2 text-sm text-muted">
                         กรอกอีเมลของคุณเพื่อรับลิงก์สำหรับตั้งรหัสผ่านใหม่
                     </p>
                 </div>
@@ -116,7 +116,7 @@ export default function ForgotPasswordPage() {
                                 onChange={(e) => setEmail(e.target.value)}
                                 disabled={loading}
                                 className="w-full rounded-xl border border-sky-200 dark:border-slate-800
-                            px-4 py-3 text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500
+                            px-4 py-3 text-fg placeholder-slate-400 dark:placeholder-slate-500
                             dark:bg-slate-950
                             focus:border-sky-500 focus:ring-2 focus:ring-sky-400
                             disabled:bg-slate-100 disabled:text-slate-400 dark:disabled:bg-slate-900 dark:disabled:text-slate-500

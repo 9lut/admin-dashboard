@@ -1,5 +1,5 @@
 import { handle, ok } from '@/lib/http/response';
-import { requireRole, Role } from '@/lib/auth/guard';
+import { requireMenuPermission } from '@/lib/auth/guard';
 import { activityRepo } from '@/lib/repositories/activityRepo';
 import { blogRepo } from '@/lib/repositories/blogRepo';
 import { newsRepo } from '@/lib/repositories/newsRepo';
@@ -8,7 +8,7 @@ import { withCache } from '@/lib/cache';
 const POPULAR_TTL = 10 * 60 * 1000; // 10 minutes
 
 export const GET = handle(async () => {
-    await requireRole(Role.ADMIN, Role.SUPERADMIN);
+    await requireMenuPermission('/admin');
 
     const data = await withCache('dashboard:popular', POPULAR_TTL, async () => {
         const [activities, blogs, news] = await Promise.all([

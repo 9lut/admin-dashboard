@@ -42,7 +42,7 @@ export default function TagInput({ tags, onChange, placeholder = "พิมพ�
                     onChange={(e) => setInputValue(e.target.value)}
                     onKeyPress={handleKeyPress}
                     placeholder={placeholder}
-                    className="flex-1 px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg outline-none focus:ring-2 focus:ring-sky-500 text-sm"
+                    className="flex-1 px-3 py-2 bg-surface-2 border border-line rounded-lg outline-none focus:ring-2 focus:ring-sky-500 text-sm"
                 />
                 <Button
                     type="button"

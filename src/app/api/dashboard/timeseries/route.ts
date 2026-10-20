@@ -1,11 +1,11 @@
 import { handle, ok } from '@/lib/http/response';
-import { requireRole, Role } from '@/lib/auth/guard';
+import { requireMenuPermission } from '@/lib/auth/guard';
 import { systemLogRepo } from '@/lib/repositories/systemLogRepo';
 import { withCache } from '@/lib/cache';
 import { parseOptionalDate } from '@/lib/http/query';
 
 export const GET = handle(async (req) => {
-    await requireRole(Role.ADMIN, Role.SUPERADMIN);
+    await requireMenuPermission('/admin');
     const url = new URL(req.url);
     const startDate = parseOptionalDate(url.searchParams, 'startDate');
     const endDate = parseOptionalDate(url.searchParams, 'endDate');

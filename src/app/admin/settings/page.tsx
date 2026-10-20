@@ -1,4 +1,5 @@
 "use client";
+import { PageHeader } from "@/app/components/ui/PageHeader";
 
 import { useEffect, useState } from "react";
 import Image from "next/image";
@@ -17,8 +18,8 @@ const EMPTY: SiteSettings = {
 };
 
 const inputClass =
-    "w-full px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-lg bg-slate-50 dark:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-sky-500 transition-all text-sm";
-const labelClass = "block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1";
+    "w-full px-3 py-2 border border-line rounded-lg bg-surface-2 focus:outline-none focus:ring-2 focus:ring-sky-500 transition-all text-sm";
+const labelClass = "block text-sm font-medium text-fg-2 mb-1";
 
 export default function SettingsPage() {
     const [data, setData] = useState<SiteSettings>(EMPTY);
@@ -86,21 +87,18 @@ export default function SettingsPage() {
     }
 
     return (
-        <div className="max-w-5xl mx-auto space-y-6">
-            <div className="flex items-center justify-between">
-                <h1 className="text-xl font-bold text-slate-800 dark:text-white flex items-center gap-2">
-                    <Settings size={24} className="text-sky-500" /> ตั้งค่าเว็บ
-                </h1>
-                <Button onClick={handleSave} disabled={saving} className="bg-emerald-500 hover:bg-emerald-600">
-                    {saving ? <Loader2 size={16} className="animate-spin mr-2" /> : <Save size={16} className="mr-2" />}
+        <div className="w-full space-y-6">
+            <PageHeader title="ติดต่อ & บริจาค" description="ข้อมูลติดต่อ ช่องทางโซเชียล และบัญชีรับบริจาคที่แสดงบนเว็บไซต์" art="contact">
+                <button type="button" onClick={handleSave} disabled={saving} className="btn-primary">
+                    {saving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
                     บันทึก
-                </Button>
-            </div>
+                </button>
+            </PageHeader>
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 {/* Contact */}
-                <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-5 space-y-4">
-                    <h2 className="font-semibold text-slate-700 dark:text-slate-200 flex items-center gap-2">
+                <div className="bg-surface border border-line rounded-2xl p-5 space-y-4">
+                    <h2 className="font-semibold text-fg-2 flex items-center gap-2">
                         <Contact size={18} className="text-sky-500" /> ข้อมูลติดต่อ
                     </h2>
 
@@ -138,8 +136,8 @@ export default function SettingsPage() {
                 </div>
 
                 {/* Donation */}
-                <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-5 space-y-4">
-                    <h2 className="font-semibold text-slate-700 dark:text-slate-200 flex items-center gap-2">
+                <div className="bg-surface border border-line rounded-2xl p-5 space-y-4">
+                    <h2 className="font-semibold text-fg-2 flex items-center gap-2">
                         <HeartHandshake size={18} className="text-emerald-500" /> การบริจาค / สนับสนุน
                     </h2>
 
@@ -169,14 +167,14 @@ export default function SettingsPage() {
                     <div>
                         <label className={labelClass}>QR พร้อมเพย์</label>
                         <div className="flex items-center gap-3">
-                            <div className="w-24 h-24 border border-dashed border-slate-300 dark:border-slate-700 rounded-xl flex items-center justify-center bg-slate-50 dark:bg-slate-800 overflow-hidden relative">
+                            <div className="w-24 h-24 border border-dashed border-slate-300 dark:border-slate-700 rounded-xl flex items-center justify-center bg-surface-2 overflow-hidden relative">
                                 {data.donation.qrImage ? (
                                     <Image src={data.donation.qrImage} alt="QR" fill className="object-contain p-1" sizes="96px" />
                                 ) : (
                                     <span className="text-slate-300 text-xs">ยังไม่มี QR</span>
                                 )}
                             </div>
-                            <label className="cursor-pointer flex items-center gap-2 text-sm text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 px-3 py-2 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800">
+                            <label className="cursor-pointer flex items-center gap-2 text-sm text-fg-2 border border-line px-3 py-2 rounded-lg hover:bg-surface-2">
                                 {uploading ? <Loader2 size={15} className="animate-spin" /> : <Upload size={15} />} อัปโหลด QR
                                 <input type="file" accept="image/png, image/jpeg, image/webp" className="hidden" onChange={handleQrUpload} />
                             </label>

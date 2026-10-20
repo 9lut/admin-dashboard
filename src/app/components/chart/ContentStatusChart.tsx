@@ -5,7 +5,7 @@ interface ContentStatusChartProps {
     data: any[];
 }
 
-const COLORS = ['#1d4ed8', '#94a3b8', '#334155'];
+const COLORS = ['#1468c2', '#95a5bc', '#e3a52f'];
 
 export const ContentStatusChart = ({ data }: ContentStatusChartProps) => {
     return (
@@ -27,12 +27,12 @@ export const ContentStatusChart = ({ data }: ContentStatusChartProps) => {
                     <Tooltip
                         contentStyle={{
                             borderRadius: '12px',
-                            border: '1px solid #f1f5f9',
+                            border: '1px solid var(--border)',
                             boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)',
-                            backgroundColor: '#ffffff',
+                            backgroundColor: 'var(--surface)',
                             padding: '8px 12px'
                         }}
-                        itemStyle={{ color: '#0f172a', fontWeight: 700, fontSize: '14px' }}
+                        itemStyle={{ color: 'var(--text)', fontWeight: 700, fontSize: '14px' }}
                     />
                     <Legend
                         layout="vertical"
@@ -40,8 +40,8 @@ export const ContentStatusChart = ({ data }: ContentStatusChartProps) => {
                         align="right"
                         iconType="circle"
                         formatter={(value, entry: any) => (
-                            <span style={{ color: '#475569', fontSize: '13px', fontWeight: 600, marginLeft: '4px' }}>
-                                {value} <span style={{ color: '#94a3b8', marginLeft: '4px' }}>{entry.payload?.value}</span>
+                            <span style={{ color: 'var(--text-2)', fontSize: '13px', fontWeight: 600, marginLeft: '4px' }}>
+                                {value} <span style={{ color: 'var(--muted)', marginLeft: '4px' }}>{entry.payload?.value}</span>
                             </span>
                         )}
                     />

@@ -10,12 +10,12 @@ export const SystemActivityChart = ({ data }: SystemActivityChartProps) => {
         <div className="h-[300px] w-full">
             <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={data} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border)" />
                     <XAxis
                         dataKey="_id"
                         axisLine={false}
                         tickLine={false}
-                        tick={{ fill: '#64748b', fontSize: 12 }}
+                        tick={{ fill: 'var(--muted)', fontSize: 12 }}
                         dy={10}
                         tickFormatter={(value) => {
                             const date = new Date(value);
@@ -28,22 +28,22 @@ export const SystemActivityChart = ({ data }: SystemActivityChartProps) => {
                         tickLine={false} 
                     />
                     <Tooltip
-                        cursor={{ fill: '#f8fafc' }}
+                        cursor={{ fill: 'var(--surface-2)' }}
                         contentStyle={{
                             borderRadius: '12px',
-                            border: '1px solid #f1f5f9',
+                            border: '1px solid var(--border)',
                             boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03)',
-                            backgroundColor: '#ffffff',
+                            backgroundColor: 'var(--surface)',
                             padding: '12px'
                         }}
-                        labelStyle={{ color: '#64748b', marginBottom: '8px', fontSize: '12px', fontWeight: 500 }}
-                        itemStyle={{ color: '#0f172a', fontWeight: 700, fontSize: '14px' }}
+                        labelStyle={{ color: 'var(--muted)', marginBottom: '8px', fontSize: '12px', fontWeight: 500 }}
+                        itemStyle={{ color: 'var(--text)', fontWeight: 700, fontSize: '14px' }}
                         labelFormatter={(value) => new Date(value).toLocaleDateString('th-TH', { day: 'numeric', month: 'long', year: 'numeric' })}
                         formatter={(value: number | undefined) => [value ?? 0, 'System Events']}
                     />
                     <Bar 
                         dataKey="count" 
-                        fill="#2563eb" 
+                        fill="#1468c2" 
                         radius={[4, 4, 0, 0]}
                         maxBarSize={40}
                     />
