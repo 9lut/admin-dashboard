@@ -1,11 +1,12 @@
 "use client";
+import { RevisionHistory } from "@/app/components/content/RevisionHistory";
+import { FormSkeleton } from "@/app/components/ui/FormSkeleton";
 
 import { useState, useEffect } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { blogService } from "@/services/blogService";
 import { BlogGroup } from "@/types/blog";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2 } from "lucide-react";
 import BlogForm from "../../../components/BlogForm";
 
 export default function EditBlogPage() {
@@ -98,11 +99,7 @@ export default function EditBlogPage() {
     };
 
     if (initializing) {
-        return (
-            <div className="flex items-center justify-center min-h-screen">
-                <Loader2 className="animate-spin text-sky-500" size={48} />
-            </div>
-        );
+        return <FormSkeleton />;
     }
 
     if (!blogData) {
@@ -110,13 +107,16 @@ export default function EditBlogPage() {
     }
 
     return (
-        <BlogForm
-            mode="edit"
-            initialData={blogData}
-            groups={groups}
-            onGroupCreated={handleGroupCreated}
-            onSubmit={handleSubmit}
-            onCancel={handleCancel}
-        />
+        <div className="space-y-5">
+            <BlogForm
+                mode="edit"
+                initialData={blogData}
+                groups={groups}
+                onGroupCreated={handleGroupCreated}
+                onSubmit={handleSubmit}
+                onCancel={handleCancel}
+            />
+            <RevisionHistory type="blog" id={blogData.id} />
+        </div>
     );
 }

@@ -2,6 +2,7 @@ import 'server-only';
 import { col, mapDoc, mapQuery, timestamps, touch, Timestamp, FieldValue } from '../firebase/firestore';
 import { NotFound } from '../http/response';
 import { deleteFile } from '../storage/r2';
+import { liveOnly } from '../content/publish';
 
 const COLLECTION = 'news';
 
@@ -10,6 +11,10 @@ export type NewsFields = {
     date?: Date;
     link?: string;
     description?: string;
+    /** 'draft' | 'published' — ไม่ส่ง = คงค่าเดิม */
+    status?: 'draft' | 'published';
+    /** เวลาเผยแพร่ (ตั้งเวลา) — null = ทันที */
+    publishAt?: Date | null;
 };
 
 export type NewsSource = { source: string; sourceId: string };
@@ -23,8 +28,12 @@ export const newsRepo = {
             description: fields.description ?? '',
             images,
             views: 0,
+            status: fields.status ?? 'published',
+            publishAt: fields.publishAt ? Timestamp.fromDate(fields.publishAt) : null,
             source: source?.source ?? null,
             sourceId: source?.sourceId ?? null,
+            // ข่าวที่ดึงอัตโนมัติ (Facebook) ต้องรอแอดมินตรวจก่อน → แสดงในการแจ้งเตือน
+            reviewedAt: source ? null : FieldValue.serverTimestamp(),
             ...timestamps(),
         });
         return mapDoc(await ref.get());
@@ -63,7 +72,9 @@ export const newsRepo = {
     },
 
     async getLatest(limit = 3) {
-        return mapQuery(col(COLLECTION).orderBy('date', 'desc').limit(limit));
+        // ดึงเผื่อ แล้วกรองร่าง/ตั้งเวลาออก ให้ได้ครบจำนวน
+        const rows = await mapQuery<{ status?: string; publishAt?: string }>(col(COLLECTION).orderBy('date', 'desc').limit(limit * 6));
+        return liveOnly(rows, Date.now()).slice(0, limit);
     },
 
     async getMostViewed(limit = 5) {
@@ -85,20 +96,37 @@ export const newsRepo = {
         const current = mapDoc<{ images?: string[] }>(snap);
 
         let images = current.images ?? [];
-        if (deleteImages.length) {
-            for (const url of deleteImages) await deleteFile(url);
-            images = images.filter((img) => !deleteImages.includes(img));
-        }
+        // ไม่ลบไฟล์บน R2 ทันที: ประวัติการแก้ไขอาจย้อนกลับมาใช้ · รูปที่ไม่มีใครใช้จัดการที่ "คลังรูป"
+        if (deleteImages.length) images = images.filter((img) => !deleteImages.includes(img));
         if (newImages.length) images = [...images, ...newImages];
 
-        const patch: Record<string, unknown> = { images, ...touch() };
+        // แก้ไขผ่านหลังบ้าน = ตรวจแล้ว
+        const patch: Record<string, unknown> = { images, reviewedAt: FieldValue.serverTimestamp(), ...touch() };
         if (fields.name !== undefined) patch.name = fields.name;
         if (fields.date !== undefined) patch.date = Timestamp.fromDate(fields.date);
         if (fields.link !== undefined) patch.link = fields.link;
         if (fields.description !== undefined) patch.description = fields.description;
+        if (fields.status !== undefined) patch.status = fields.status;
+        if (fields.publishAt !== undefined) patch.publishAt = fields.publishAt ? Timestamp.fromDate(fields.publishAt) : null;
 
         await ref.update(patch);
         return mapDoc(await ref.get());
+    },
+
+    /** ข่าวที่ดึงอัตโนมัติแต่ยังไม่มีคนตรวจ (ดูย้อนหลัง 30 วัน) */
+    async pendingReview(limit = 20) {
+        const since = Timestamp.fromDate(new Date(Date.now() - 30 * 86400000));
+        const snap = await col(COLLECTION).where('createdAt', '>=', since).orderBy('createdAt', 'desc').limit(200).get();
+        return snap.docs
+            .filter((d) => d.get('source') && !d.get('reviewedAt'))
+            .slice(0, limit)
+            .map((d) => mapDoc<{ name: string; source: string; createdAt: string }>(d));
+    },
+
+    async markReviewed(id: string) {
+        const ref = col(COLLECTION).doc(id);
+        if (!(await ref.get()).exists) throw NotFound(`News with id '${id}' not found`);
+        await ref.update({ reviewedAt: FieldValue.serverTimestamp() });
     },
 
     async remove(id: string) {

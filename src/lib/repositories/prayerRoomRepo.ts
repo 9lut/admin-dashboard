@@ -90,10 +90,8 @@ export const prayerRoomRepo = {
         const current = mapDoc<{ images?: string[]; name?: string; slug?: string; legacySlugs?: string[] }>(snap);
 
         let images = current.images ?? [];
-        if (deleteImages.length) {
-            for (const url of deleteImages) await deleteFile(url);
-            images = images.filter((img) => !deleteImages.includes(img));
-        }
+        // ไม่ลบไฟล์บน R2 ทันที: ประวัติการแก้ไขอาจย้อนกลับมาใช้ · รูปที่ไม่มีใครใช้จัดการที่ "คลังรูป"
+        if (deleteImages.length) images = images.filter((img) => !deleteImages.includes(img));
         if (newImages.length) images = [...images, ...newImages];
 
         const patch: Record<string, unknown> = { images, ...touch() };

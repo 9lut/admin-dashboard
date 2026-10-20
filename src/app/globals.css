@@ -2,29 +2,278 @@
 
 @custom-variant dark (&:where(.dark, .dark *));
 
+/* ------------------------------------------------------------------ */
+/*  MSS design tokens — โทนฟ้า/น้ำเงินตามโลโก้ MSS (#0299D1)            */
+/*  หลังบ้านใช้ token เชิงความหมาย: bg / surface / line / fg / muted     */
+/* ------------------------------------------------------------------ */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-anuphan);
+  --bg: #eef3fa;
+  --surface: #ffffff;
+  --surface-2: #f0f5fb;
+  --border: #e2eaf4;
+  --border-strong: #cfdbea;
+  --text: #0e1b30;
+  --text-2: #3f4f68;
+  --muted: #6a7a91;
+  --primary: #1468c2;
+  --primary-hover: #12549e;
+  --primary-soft: #ebf4fd;
+  --primary-fg: #ffffff;
+  --brand: #0299d1;
+  --positive: #059669;
+  --positive-soft: #ecfdf5;
+  --negative: #dc2626;
+  --negative-soft: #fef2f2;
+  --warning: #d97706;
+  --warning-soft: #fffbeb;
+  --ring: rgb(20 104 194 / 0.18);
+  --accent-gold: #e3a52f;
+  --hero-from: #0a2552;
+  --hero-via: #0f4a96;
+  --hero-to: #0299d1;
+  --side-from: #2f7bea;
+  --side-via: #1d5fd0;
+  --side-to: #1342a6;
+  --shadow: 0 8px 24px rgb(14 40 80 / 0.05);
+  --shadow-lg: 0 24px 60px rgb(14 40 80 / 0.14);
+  color-scheme: light;
 }
 
 .dark {
-  --background: #0a0a0a;
-  --foreground: #ededed;
+  --bg: #07101d;
+  --surface: #0c1829;
+  --surface-2: #12223a;
+  --border: rgb(255 255 255 / 0.07);
+  --border-strong: rgb(255 255 255 / 0.13);
+  --text: #eaf2fd;
+  --text-2: #b7c5d9;
+  --muted: #7e8fa8;
+  --primary: #5aa9ff;
+  --primary-hover: #86c0ff;
+  --primary-soft: rgb(90 169 255 / 0.13);
+  --primary-fg: #04152b;
+  --brand: #38bdf8;
+  --positive: #34d399;
+  --positive-soft: rgb(52 211 153 / 0.1);
+  --negative: #fb7185;
+  --negative-soft: rgb(251 113 133 / 0.1);
+  --warning: #fbbf24;
+  --warning-soft: rgb(251 191 36 / 0.1);
+  --ring: rgb(90 169 255 / 0.35);
+  --hero-from: #030b18;
+  --hero-via: #081d3d;
+  --hero-to: #0b4a80;
+  --side-from: #13305e;
+  --side-via: #0d2448;
+  --side-to: #081833;
+  --shadow: 0 0 0 1px rgb(255 255 255 / 0.02);
+  --shadow-lg: 0 16px 40px -12px rgb(0 0 0 / 0.6);
+  color-scheme: dark;
+}
+
+@theme inline {
+  --font-sans: var(--font-anuphan), "Noto Sans Thai", sans-serif;
+  --font-display: var(--font-kanit), var(--font-anuphan), sans-serif;
+
+  /* โทนแบรนด์ MSS — ใช้แทน sky/blue เดิมทั้งระบบ (หน้าเก่าเปลี่ยนสีตามโดยไม่ต้องแก้ทีละไฟล์) */
+  --color-sky-50: #eef6fd;
+  --color-sky-100: #d9ebfb;
+  --color-sky-200: #b6d8f7;
+  --color-sky-300: #84bdf1;
+  --color-sky-400: #4b9de8;
+  --color-sky-500: #1f80dc;
+  --color-sky-600: #1468c2;
+  --color-sky-700: #12549e;
+  --color-sky-800: #134682;
+  --color-sky-900: #143c6b;
+  --color-sky-950: #0d2546;
+  --color-blue-50: #eef6fd;
+  --color-blue-100: #d9ebfb;
+  --color-blue-200: #b6d8f7;
+  --color-blue-300: #84bdf1;
+  --color-blue-400: #4b9de8;
+  --color-blue-500: #1f80dc;
+  --color-blue-600: #1468c2;
+  --color-blue-700: #12549e;
+  --color-blue-800: #134682;
+  --color-blue-900: #143c6b;
+  --color-blue-950: #0d2546;
+
+  /* neutral อมน้ำเงิน ให้พื้นมืดเข้ากับธีม */
+  --color-slate-50: #f5f8fc;
+  --color-slate-100: #edf2f8;
+  --color-slate-200: #e2eaf4;
+  --color-slate-300: #cfdbea;
+  --color-slate-400: #95a5bc;
+  --color-slate-500: #6a7a91;
+  --color-slate-600: #4a5a73;
+  --color-slate-700: #34435a;
+  --color-slate-800: #1a2a42;
+  --color-slate-900: #0f1d31;
+  --color-slate-950: #0a1525;
+
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-line: var(--border);
+  --color-line-strong: var(--border-strong);
+  --color-fg: var(--text);
+  --color-fg-2: var(--text-2);
+  --color-muted: var(--muted);
+  --color-brand: var(--brand);
+  --color-primary: var(--primary);
+  --color-primary-hover: var(--primary-hover);
+  --color-primary-soft: var(--primary-soft);
+  --color-primary-fg: var(--primary-fg);
+  --color-positive: var(--positive);
+  --color-positive-soft: var(--positive-soft);
+  --color-negative: var(--negative);
+  --color-negative-soft: var(--negative-soft);
+  --color-warning: var(--warning);
+  --color-warning-soft: var(--warning-soft);
+  --color-hero-from: var(--hero-from);
+  --color-hero-via: var(--hero-via);
+  --color-hero-to: var(--hero-to);
+  --shadow-card: var(--shadow);
+  --shadow-pop: var(--shadow-lg);
+
+  /* token แบบ shadcn ที่ components/ui/button.tsx ใช้ */
+  --color-primary-foreground: var(--primary-fg);
+  --color-destructive: var(--negative);
+  --color-background: var(--surface);
+  --color-foreground: var(--text);
+  --color-accent: var(--surface-2);
+  --color-accent-foreground: var(--text);
+  --color-secondary: var(--surface-2);
+  --color-secondary-foreground: var(--text);
+  --color-input: var(--border-strong);
+  --color-ring: var(--primary);
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: var(--font-anuphan), sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-anuphan), "Noto Sans Thai", sans-serif;
+}
+
+button {
+  cursor: pointer;
+}
+
+h1,
+h2,
+h3 {
+  font-family: var(--font-display);
+}
+
+/* พื้นหลังแอป: ฟ้าอ่อนนุ่ม ๆ มีแสงฟุ้งมุมบน */
+.app-bg {
+  background:
+    radial-gradient(60rem 30rem at 85% -10%, rgb(2 153 209 / 0.12), transparent 60%),
+    radial-gradient(40rem 30rem at 20% 110%, rgb(20 104 194 / 0.08), transparent 60%),
+    var(--bg);
+  background-attachment: fixed;
+}
+
+/* แถบเมนูน้ำเงินไล่สี + เงาแสงด้านบน */
+.sidebar-bg {
+  background:
+    radial-gradient(18rem 14rem at 0% 0%, rgb(255 255 255 / 0.18), transparent 70%),
+    radial-gradient(16rem 16rem at 100% 100%, rgb(2 153 209 / 0.35), transparent 70%),
+    linear-gradient(170deg, var(--side-from) 0%, var(--side-via) 55%, var(--side-to) 100%);
+}
+
+/* พื้นหลัง banner ไล่สีน้ำเงิน → ฟ้า MSS + ลายจุด */
+.hero-bg {
+  background-image:
+    url("data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAiIGhlaWdodD0iMjAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGNpcmNsZSBjeD0iMSIgY3k9IjEiIHI9IjEiIGZpbGw9InJnYmEoMjU1LDI1NSwyNTUsMC4wNykiLz48L3N2Zz4="),
+    linear-gradient(130deg, var(--hero-from) 0%, var(--hero-via) 55%, var(--hero-to) 100%);
+}
+
+/* ปุ่มที่วางบน hero: ปุ่มหลักเป็นขาว ปุ่มรองเป็นกระจกฝ้า */
+.on-hero .btn-primary {
+  background: #fff;
+  color: #0f4a96;
+  box-shadow: 0 10px 30px -10px rgb(0 0 0 / 0.35);
+}
+.on-hero .btn-primary:hover {
+  background: #eef6fd;
+}
+.on-hero .btn-secondary,
+.on-hero .btn-ghost {
+  background: rgb(255 255 255 / 0.12);
+  border-color: rgb(255 255 255 / 0.25);
+  color: #fff;
+  backdrop-filter: blur(8px);
+}
+.on-hero .btn-secondary:hover,
+.on-hero .btn-ghost:hover {
+  background: rgb(255 255 255 / 0.22);
+}
+
+.tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+.hide-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.hide-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* ---------- UI kit utilities ---------- */
+@utility card {
+  @apply rounded-3xl border border-line bg-surface shadow-card;
+}
+
+@utility btn {
+  @apply inline-flex h-10 items-center justify-center gap-2 rounded-xl px-4 text-sm font-bold whitespace-nowrap transition-all duration-200 select-none disabled:pointer-events-none disabled:opacity-50 active:scale-[0.98];
+}
+
+@utility btn-primary {
+  @apply btn bg-primary text-primary-fg shadow-[0_8px_20px_rgba(20,104,194,0.22)] hover:-translate-y-0.5 hover:bg-primary-hover;
+}
+
+@utility btn-secondary {
+  @apply btn border border-line-strong bg-surface text-fg hover:bg-surface-2;
+}
+
+@utility btn-ghost {
+  @apply btn text-fg-2 hover:bg-surface-2 hover:text-fg;
+}
+
+@utility btn-danger {
+  @apply btn border border-line-strong bg-surface text-negative hover:bg-negative-soft;
+}
+
+@utility btn-sm {
+  @apply h-8 rounded-lg px-3 text-xs;
+}
+
+@utility input {
+  @apply h-11 w-full rounded-xl border border-line-strong bg-surface px-3.5 text-base sm:text-sm text-fg placeholder:text-muted transition-shadow duration-200 outline-none focus:border-primary focus:ring-4 focus:ring-[var(--ring)];
+}
+
+/* ช่องกรอกในฟอร์ม (สูงตามเนื้อหา ใช้กับ textarea ได้) · มือถือ 16px กัน iOS ซูมอัตโนมัติ */
+@utility field {
+  @apply w-full rounded-xl border border-line-strong bg-surface px-3.5 py-2.5 text-base text-fg placeholder:text-muted transition-shadow duration-200 outline-none focus:border-primary focus:ring-4 focus:ring-[var(--ring)] disabled:cursor-not-allowed disabled:opacity-60 sm:text-sm;
+}
+
+@utility label {
+  @apply mb-1.5 block text-sm font-bold text-fg;
 }
 
 @layer utilities {
+  .custom-scrollbar {
+    scrollbar-width: thin;
+    scrollbar-color: var(--border-strong) transparent;
+  }
   .custom-scrollbar::-webkit-scrollbar {
     width: 6px;
     height: 6px;
@@ -33,11 +282,28 @@ body {
     background: transparent;
   }
   .custom-scrollbar::-webkit-scrollbar-thumb {
-    background-color: #cbd5e1;
+    background-color: var(--border-strong);
     border-radius: 20px;
   }
-  .dark .custom-scrollbar::-webkit-scrollbar-thumb {
-    background-color: #475569;
+}
+
+@keyframes fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.animate-in {
+  animation: fade-up 0.35s ease both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-in {
+    animation: none;
   }
 }
 
@@ -49,7 +315,7 @@ body {
   line-height: 1.2;
   margin-top: 1em;
   margin-bottom: 0.5em;
-  color: var(--foreground);
+  color: var(--text);
 }
 
 .ProseMirror h2,
@@ -59,7 +325,7 @@ body {
   line-height: 1.25;
   margin-top: 0.85em;
   margin-bottom: 0.4em;
-  color: var(--foreground);
+  color: var(--text);
 }
 
 .ProseMirror h3,
@@ -69,7 +335,7 @@ body {
   line-height: 1.3;
   margin-top: 0.75em;
   margin-bottom: 0.35em;
-  color: var(--foreground);
+  color: var(--text);
 }
 
 .ProseMirror ul,
@@ -101,23 +367,23 @@ body {
 
 .ProseMirror a,
 .blog-content a {
-  color: #0284c7;
+  color: var(--primary);
   text-decoration: underline;
   cursor: pointer;
 }
 
 .ProseMirror a:hover,
 .blog-content a:hover {
-  color: #0369a1;
+  color: var(--primary-hover);
 }
 
 .ProseMirror blockquote,
 .blog-content blockquote {
-  border-left: 4px solid #0ea5e9;
+  border-left: 4px solid var(--brand);
   padding-left: 1em;
   margin-left: 0;
   margin-top: 0.5em;
   margin-bottom: 0.5em;
-  color: #64748b;
+  color: var(--muted);
   font-style: italic;
 }

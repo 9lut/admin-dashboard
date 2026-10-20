@@ -1,10 +1,10 @@
 import { handle, ok } from '@/lib/http/response';
-import { requireRole, Role } from '@/lib/auth/guard';
+import { requireMenuPermission } from '@/lib/auth/guard';
 import { blogRepo } from '@/lib/repositories/blogRepo';
 import { parsePagination } from '@/lib/http/query';
 
 export const GET = handle(async (req) => {
-    await requireRole(Role.ADMIN, Role.SUPERADMIN);
+    await requireMenuPermission('/admin/blog/content');
     const { searchParams } = new URL(req.url);
     const { page, limit } = parsePagination(searchParams, 10);
     

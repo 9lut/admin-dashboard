@@ -2,6 +2,24 @@ import 'server-only';
 import { NextResponse } from 'next/server';
 import { ZodError } from 'zod';
 import { logMutation } from './systemLogging';
+import { clearCache } from '../cache';
+
+// แคชรายการที่ต้องล้างเมื่อมีการแก้ไขข้อมูล (เดิมไม่ล้าง → ลบแล้วรายการเก่ายังค้างได้ถึง 2 นาที)
+const CACHE_BY_PATH: [string, string[]][] = [
+    ['/api/news', ['api_news', 'dashboard']],
+    ['/api/activities', ['api_activities', 'dashboard']],
+    ['/api/prayer-rooms', ['api_prayer_rooms', 'dashboard']],
+    ['/api/blog', ['dashboard']],
+    ['/api/accounts', ['dashboard']],
+];
+
+function invalidateFor(req: Request, status: number) {
+    if (status >= 400 || !['POST', 'PUT', 'PATCH', 'DELETE'].includes(req.method.toUpperCase())) return;
+    const path = new URL(req.url).pathname;
+    for (const [prefix, keys] of CACHE_BY_PATH) {
+        if (path.startsWith(prefix)) keys.forEach((k) => clearCache(k));
+    }
+}
 
 export interface ApiSuccess<T> {
     status: 'success';
@@ -64,6 +82,7 @@ export function handle(
     return async (req: Request, ctx: { params: Promise<Record<string, string>> }): Promise<Response> => {
         try {
             const res = await fn(req, ctx);
+            invalidateFor(req, res.status);
             // Auto-log successful mutations (replaces the old SystemLogInterceptor).
             // Logging must never break the actual response.
             try {

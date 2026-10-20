@@ -78,10 +78,10 @@ export default function BlogBlockEditor({ blocks, onChange, onImageDelete }: Blo
     return (
         <div className="space-y-4">
             {blocks.map((block, index) => (
-                <div key={index} className="relative group bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-4 transition-all hover:shadow-md">
+                <div key={index} className="relative group bg-surface-2 border border-line rounded-xl p-4 transition-all hover:shadow-md">
 
                     {/* Block Controls */}
-                    <div className="absolute right-2 top-2 flex items-center gap-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity bg-white dark:bg-slate-800 p-1 rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm z-10">
+                    <div className="absolute right-2 top-2 flex items-center gap-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity bg-white dark:bg-slate-800 p-1 rounded-lg border border-line shadow-sm z-10">
                         <button
                             type="button"
                             onClick={() => moveBlock(index, 'up')}
@@ -159,7 +159,7 @@ export default function BlogBlockEditor({ blocks, onChange, onImageDelete }: Blo
                                                 </button>
                                             </div>
                                         ) : (
-                                            <div className="w-full max-w-md h-40 border-2 border-dashed border-slate-300 dark:border-slate-700 rounded-xl flex flex-col items-center justify-center p-4 hover:bg-slate-50 dark:hover:bg-slate-900/50 transition-colors relative">
+                                            <div className="w-full max-w-md h-40 border-2 border-dashed border-slate-300 dark:border-slate-700 rounded-xl flex flex-col items-center justify-center p-4 hover:bg-surface-2 transition-colors relative">
                                                 {uploadingIndex === index ? (
                                                     <Loader2 className="animate-spin text-sky-500" />
                                                 ) : (
@@ -183,7 +183,7 @@ export default function BlogBlockEditor({ blocks, onChange, onImageDelete }: Blo
                                             type="text"
                                             value={(block.data as { caption: string }).caption || ''}
                                             onChange={(e) => updateBlockData(index, { ...(block.data as any), caption: e.target.value })}
-                                            className="w-full max-w-md px-3 py-2 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg text-sm outline-none focus:ring-2 focus:ring-sky-500"
+                                            className="w-full max-w-md px-3 py-2 bg-surface border border-line rounded-lg text-sm outline-none focus:ring-2 focus:ring-sky-500"
                                             placeholder="คำอธิบายรูปภาพ (Caption) - ไม่บังคับ"
                                         />
                                     </div>
@@ -195,11 +195,11 @@ export default function BlogBlockEditor({ blocks, onChange, onImageDelete }: Blo
             ))}
 
             {/* Add Block Buttons */}
-            <div className="flex gap-2 justify-center py-4 border-t border-dashed border-slate-200 dark:border-slate-800 mt-4">
+            <div className="flex gap-2 justify-center py-4 border-t border-dashed border-line mt-4">
                 <button
                     type="button"
                     onClick={() => addBlock('paragraph')}
-                    className="flex items-center gap-2 px-4 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-sky-500 hover:text-sky-600 rounded-xl shadow-sm transition-all text-sm font-medium"
+                    className="flex items-center gap-2 px-4 py-2 bg-surface border border-line hover:border-sky-500 hover:text-sky-600 rounded-xl shadow-sm transition-all text-sm font-medium"
                 >
                     <Type size={16} />
                     เพิ่มข้อความ
@@ -207,7 +207,7 @@ export default function BlogBlockEditor({ blocks, onChange, onImageDelete }: Blo
                 <button
                     type="button"
                     onClick={() => addBlock('image')}
-                    className="flex items-center gap-2 px-4 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-sky-500 hover:text-sky-600 rounded-xl shadow-sm transition-all text-sm font-medium"
+                    className="flex items-center gap-2 px-4 py-2 bg-surface border border-line hover:border-sky-500 hover:text-sky-600 rounded-xl shadow-sm transition-all text-sm font-medium"
                 >
                     <ImageIcon size={16} />
                     เพิ่มรูปภาพ

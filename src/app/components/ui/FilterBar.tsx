@@ -6,74 +6,64 @@ interface FilterBarProps {
     onSearchChange: (value: string) => void;
     placeholder?: string;
     className?: string;
-    children?: React.ReactNode; // For additional filters (selects, buttons, etc.)
+    children?: React.ReactNode; // ตัวกรองเพิ่มเติม (select, ปุ่ม ฯลฯ)
 }
 
-export function FilterBar({
-    searchTerm,
-    onSearchChange,
-    placeholder = "ค้นหา...",
-    className,
-    children
-}: FilterBarProps) {
+export function FilterBar({ searchTerm, onSearchChange, placeholder = "ค้นหา...", className, children }: FilterBarProps) {
     return (
-        <div className={cn("top-0 z-0 mb-4", className)}>
-            <div className="flex flex-col lg:flex-row justify-between items-center gap-4">
-
-                {/* Search & Filter Group */}
-                <div className="flex flex-wrap items-center gap-2 w-full lg:w-auto flex-1">
-                    {/* Search Field */}
-                    <div className="relative flex-1 min-w-[200px] lg:w-80">
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-                        <input
-                            type="text"
-                            placeholder={placeholder}
-                            value={searchTerm}
-                            onChange={(e) => onSearchChange(e.target.value)}
-                            className="w-full pl-10 pr-4 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-sm outline-none focus:ring-1 focus:ring-sky-500"
-                        />
-                        {searchTerm && (
-                            <button
-                                onClick={() => onSearchChange("")}
-                                className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
-                            >
-                                <X size={14} />
-                            </button>
-                        )}
-                    </div>
-
-                    {/* Additional Filters Slot */}
-                    {children}
+        <div className={cn("mb-4", className)}>
+            <div className="flex w-full flex-1 flex-wrap items-center gap-2 lg:w-auto">
+                <div className="relative min-w-[200px] flex-1 lg:w-80 lg:flex-none">
+                    <Search className="pointer-events-none absolute top-1/2 left-3.5 -translate-y-1/2 text-muted" size={16} />
+                    <input
+                        type="search"
+                        aria-label={placeholder}
+                        placeholder={placeholder}
+                        value={searchTerm}
+                        onChange={(e) => onSearchChange(e.target.value)}
+                        className="input h-10 pr-9 pl-10 [&::-webkit-search-cancel-button]:hidden"
+                    />
+                    {searchTerm && (
+                        <button
+                            type="button"
+                            aria-label="ล้างคำค้นหา"
+                            onClick={() => onSearchChange("")}
+                            className="absolute top-1/2 right-2 grid size-6 -translate-y-1/2 place-items-center rounded-full text-muted hover:bg-surface-2 hover:text-fg"
+                        >
+                            <X size={14} />
+                        </button>
+                    )}
                 </div>
+                {children}
             </div>
         </div>
     );
 }
 
-// Reusable Filter Select Component to ensure consistent styling
 interface FilterSelectProps {
     value: string;
     onChange: (value: string) => void;
     options: { value: string; label: string }[];
     icon?: React.ReactNode;
     defaultLabel?: string;
-    className?: string; // Add className prop
+    className?: string;
 }
 
 export function FilterSelect({ value, onChange, options, icon, defaultLabel = "ทั้งหมด", className }: FilterSelectProps) {
     return (
-        <div className={cn("flex items-center gap-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2", className)}>
+        <label className={cn("flex h-10 items-center gap-2 rounded-xl border border-line-strong bg-surface px-3 transition-shadow focus-within:border-primary focus-within:ring-4 focus-within:ring-[var(--ring)]", className)}>
             {icon}
             <select
                 value={value}
                 onChange={(e) => onChange(e.target.value)}
-                className="bg-transparent border-none text-xs outline-none text-slate-700 dark:text-slate-200 min-w-[80px]"
+                aria-label={defaultLabel}
+                className="min-w-[80px] cursor-pointer border-none bg-transparent text-sm text-fg outline-none"
             >
                 <option value="">{defaultLabel}</option>
                 {options.map((opt) => (
                     <option key={opt.value} value={opt.value}>{opt.label}</option>
                 ))}
             </select>
-        </div>
+        </label>
     );
 }

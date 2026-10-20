@@ -1,6 +1,7 @@
 import 'server-only';
 import { uploadFile } from '../storage/r2';
 import type { ActivityFields } from '../repositories/activityRepo';
+import { readImageUrls, readPublish } from '../http/content';
 
 export type ParsedActivity = {
     fields: ActivityFields;
@@ -10,8 +11,18 @@ export type ParsedActivity = {
 
 function toArray(v: unknown): string[] | undefined {
     if (v === undefined || v === null || v === '') return undefined;
-    if (Array.isArray(v)) return v.map((s) => String(s).trim());
-    return String(v)
+    if (Array.isArray(v)) return v.map((s) => String(s).trim()).filter(Boolean);
+    const s = String(v).trim();
+    // รูปแบบใหม่: JSON array (ข้อความมีจุลภาคได้) · รูปแบบเดิม: คั่นด้วยจุลภาค
+    if (s.startsWith('[')) {
+        try {
+            const parsed = JSON.parse(s);
+            if (Array.isArray(parsed)) return parsed.map((x) => String(x).trim()).filter(Boolean);
+        } catch {
+            /* ไม่ใช่ JSON → ใช้แบบคั่นจุลภาค */
+        }
+    }
+    return s
         .split(',')
         .map((s) => s.trim())
         .filter(Boolean);
@@ -57,6 +68,9 @@ function build(raw: Record<string, unknown>): Omit<ParsedActivity, 'newImages'> 
         favorite: raw.favorite !== undefined ? String(raw.favorite) === 'true' : undefined,
     };
 
+    const publish = readPublish((k) => (raw[k] === undefined || raw[k] === null ? undefined : String(raw[k])));
+    if (publish) Object.assign(fields, publish);
+
     const duration = computeDuration(start, end);
     if (duration !== undefined) fields.duration = duration;
 
@@ -82,6 +96,7 @@ export async function parseActivity(req: Request): Promise<ParsedActivity> {
         const files = form.getAll('images').filter((f): f is File => f instanceof File);
         const newImages: string[] = [];
         for (const file of files) newImages.push(await uploadFile(file));
+        newImages.push(...readImageUrls(raw.image_urls as string | undefined));
         return { ...build(raw), newImages };
     }
 

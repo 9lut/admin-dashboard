@@ -11,7 +11,7 @@ export function TableSkeleton({ columns, rows = 5, avatarColumn = true, actionCo
     return (
         <>
             {[...Array(rows)].map((_, i) => (
-                <tr key={i} className="bg-white dark:bg-slate-950 border-b border-slate-100 dark:border-slate-800 animate-in fade-in duration-500">
+                <tr key={i} className="bg-surface border-b border-line animate-in fade-in duration-500">
                     {[...Array(columns)].map((_, j) => {
                         // First Column (Avatar/Image)
                         if (j === 0 && avatarColumn) {

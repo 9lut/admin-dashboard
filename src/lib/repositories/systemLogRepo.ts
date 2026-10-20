@@ -1,7 +1,21 @@
 import 'server-only';
-import { col, mapQuery, Timestamp, FieldValue } from '../firebase/firestore';
+import { col, mapDoc, mapQuery, Timestamp, FieldValue } from '../firebase/firestore';
+import { matchesLog, type LogDoc, type LogFilter } from '../logs/filter';
+export { resourceKey } from '../logs/filter';
+
+export type LogSearch = LogFilter & {
+    since?: Date;
+    until?: Date;
+    order?: 'asc' | 'desc';
+    /** id ของเอกสารสุดท้ายจากหน้าก่อน */
+    cursor?: string;
+    limit?: number;
+};
 
 const COLLECTION = 'systemLogs';
+
+const SCAN_CHUNK = 300;
+const MAX_SCAN = 3000;
 
 /** Group logs by YYYY-MM-DD, returning [{ _id: date, count }] sorted ascending. */
 function groupByDay(rows: { createdAt?: string }[]): { _id: string; count: number }[] {
@@ -43,6 +57,61 @@ export const systemLogRepo = {
         
         // Update the daily aggregate document directly (only consumes 1 write per log)
         await col('dailyStats').doc(today).set(updates, { merge: true });
+    },
+
+    /**
+     * ค้นหา/กรองฝั่ง server แบบไล่อ่านทีละชุดตามเวลา (ใช้แค่ index ของ createdAt — ไม่ต้องสร้าง composite index)
+     * หยุดเมื่อได้ครบ limit หรืออ่านเกิน MAX_SCAN ต่อคำขอ แล้วคืน cursor ให้หน้าถัดไปอ่านต่อ
+     */
+    async search(o: LogSearch) {
+        const limit = Math.min(Math.max(o.limit ?? 50, 1), 100);
+        const order = o.order ?? 'desc';
+        let base = col(COLLECTION) as FirebaseFirestore.Query;
+        if (o.since) base = base.where('createdAt', '>=', Timestamp.fromDate(o.since));
+        if (o.until) base = base.where('createdAt', '<=', Timestamp.fromDate(o.until));
+        base = base.orderBy('createdAt', order);
+
+        const totalInRange = (await base.count().get()).data().count;
+
+        let after: FirebaseFirestore.DocumentSnapshot | undefined;
+        if (o.cursor) {
+            const snap = await col(COLLECTION).doc(o.cursor).get();
+            if (snap.exists) after = snap;
+        }
+
+        const rows: Record<string, unknown>[] = [];
+        let scanned = 0;
+        let nextCursor: string | null = null;
+        let exhausted = false;
+        while (rows.length < limit && scanned < MAX_SCAN) {
+            let q = base.limit(SCAN_CHUNK);
+            if (after) q = q.startAfter(after);
+            const snap = await q.get();
+            if (snap.empty) {
+                exhausted = true;
+                break;
+            }
+            let consumedAll = true;
+            for (let i = 0; i < snap.docs.length; i++) {
+                const doc = snap.docs[i];
+                scanned++;
+                after = doc;
+                if (matchesLog(doc.data() as LogDoc, o)) {
+                    rows.push(mapDoc(doc));
+                    if (rows.length >= limit) {
+                        consumedAll = i === snap.docs.length - 1;
+                        break;
+                    }
+                }
+            }
+            // ชุดสุดท้ายที่สั้นกว่าปกติและอ่านครบทุกตัว = ไม่มีข้อมูลเหลือแล้ว
+            if (snap.size < SCAN_CHUNK && consumedAll) {
+                exhausted = true;
+                break;
+            }
+        }
+        if (!exhausted && after) nextCursor = after.id;
+        return { rows, nextCursor, scanned, totalInRange };
     },
 
     async findAll(limit = 100) {

@@ -5,12 +5,12 @@ import { ApiEnvelope, unwrapResponse } from '@/lib/axios/types';
 
 export const newsService = {
     getAll: async () => {
-        const response = await api.get<ApiEnvelope<News[]>>("/news/");
+        const response = await api.get<ApiEnvelope<News[]>>("/news/?admin=1");
         return unwrapResponse(response);
     },
 
     getById: async (id: string) => {
-        const response = await api.get<ApiEnvelope<News>>(`/news/${id}`);
+        const response = await api.get<ApiEnvelope<News>>(`/news/${id}?admin=1`);
         return unwrapResponse(response);
     },
 

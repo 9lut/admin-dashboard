@@ -1,4 +1,6 @@
 "use client";
+import { PageHeader } from "@/app/components/ui/PageHeader";
+import { FormSkeleton } from "@/app/components/ui/FormSkeleton";
 
 import { useState, useEffect } from "react";
 import { User, Mail, Phone, Shield, Clock, Save, Loader2 } from "lucide-react";
@@ -78,27 +80,17 @@ export default function ProfilePage() {
     };
 
     if (loading) {
-        return (
-            <div className="flex items-center justify-center min-h-[60vh]">
-                <Loader2 className="h-8 w-8 animate-spin text-sky-500" />
-            </div>
-        );
+        return <FormSkeleton />;
     }
 
     const initials = `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase() || "U";
 
     return (
-        <div className="w-full max-w-2xl mx-auto space-y-6 pb-32">
-            {/* Header */}
-            <div className="px-1">
-                <h2 className="text-xl font-bold text-slate-800 dark:text-white flex items-center gap-2">
-                    <div className="w-1.5 h-6 bg-sky-500 rounded-full" />
-                    โปรไฟล์ของฉัน
-                </h2>
-            </div>
+        <div className="w-full space-y-6">
+            <PageHeader title="บัญชีของฉัน" description="แก้ไขข้อมูลส่วนตัวและเปลี่ยนรหัสผ่าน" art="profile" />
 
             {/* Avatar Card */}
-            <div className="bg-gradient-to-br from-sky-500 to-indigo-600 rounded-2xl p-6 text-white shadow-lg">
+            <div className="hero-bg rounded-3xl p-6 text-white shadow-[0_20px_40px_-20px_rgba(15,74,150,0.6)]">
                 <div className="flex items-center gap-4">
                     <div className="h-16 w-16 rounded-full bg-white/20 backdrop-blur flex items-center justify-center text-2xl font-bold border-2 border-white/40">
                         {initials}
@@ -115,7 +107,7 @@ export default function ProfilePage() {
             </div>
 
             {/* Form Card */}
-            <div className="bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm overflow-hidden">
+            <div className="bg-surface border border-line rounded-2xl shadow-sm overflow-hidden">
                 <div className="p-6 space-y-5">
                     {/* Editable Fields */}
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -127,7 +119,7 @@ export default function ProfilePage() {
                                     type="text"
                                     value={firstName}
                                     onChange={(e) => setFirstName(e.target.value)}
-                                    className="w-full pl-10 pr-4 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-medium outline-none focus:ring-2 focus:ring-sky-500/50 transition-all"
+                                    className="w-full pl-10 pr-4 py-2.5 bg-surface-2 border border-line rounded-xl text-sm font-medium outline-none focus:ring-2 focus:ring-sky-500/50 transition-all"
                                     placeholder="ชื่อ"
                                 />
                             </div>
@@ -140,7 +132,7 @@ export default function ProfilePage() {
                                     type="text"
                                     value={lastName}
                                     onChange={(e) => setLastName(e.target.value)}
-                                    className="w-full pl-10 pr-4 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-medium outline-none focus:ring-2 focus:ring-sky-500/50 transition-all"
+                                    className="w-full pl-10 pr-4 py-2.5 bg-surface-2 border border-line rounded-xl text-sm font-medium outline-none focus:ring-2 focus:ring-sky-500/50 transition-all"
                                     placeholder="นามสกุล"
                                 />
                             </div>
@@ -156,14 +148,14 @@ export default function ProfilePage() {
                                 value={phoneNumber}
                                 maxLength={10}
                                 onChange={(e) => setPhoneNumber(e.target.value)}
-                                className="w-full pl-10 pr-4 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-medium outline-none focus:ring-2 focus:ring-sky-500/50 transition-all"
+                                className="w-full pl-10 pr-4 py-2.5 bg-surface-2 border border-line rounded-xl text-sm font-medium outline-none focus:ring-2 focus:ring-sky-500/50 transition-all"
                                 placeholder="0xx-xxx-xxxx"
                             />
                         </div>
                     </div>
 
                     {/* Read-Only Fields */}
-                    <div className="pt-4 border-t border-slate-100 dark:border-slate-800 space-y-4">
+                    <div className="pt-4 border-t border-line space-y-4">
                         <div>
                             <label className="block text-xs font-bold text-slate-500 mb-1.5">อีเมล</label>
                             <div className="relative">
@@ -172,7 +164,7 @@ export default function ProfilePage() {
                                     type="text"
                                     value={user?.email || ""}
                                     readOnly
-                                    className="w-full pl-10 pr-4 py-2.5 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-medium text-slate-400 cursor-not-allowed"
+                                    className="w-full pl-10 pr-4 py-2.5 bg-surface-2 border border-line rounded-xl text-sm font-medium text-slate-400 cursor-not-allowed"
                                 />
                             </div>
                         </div>
@@ -185,7 +177,7 @@ export default function ProfilePage() {
                                         type="text"
                                         value={roleLabel[user?.role || ""] || user?.role || ""}
                                         readOnly
-                                        className="w-full pl-10 pr-4 py-2.5 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-medium text-slate-400 cursor-not-allowed"
+                                        className="w-full pl-10 pr-4 py-2.5 bg-surface-2 border border-line rounded-xl text-sm font-medium text-slate-400 cursor-not-allowed"
                                     />
                                 </div>
                             </div>
@@ -197,7 +189,7 @@ export default function ProfilePage() {
                                         type="text"
                                         value={user?.lastLoginAt ? new Date(user.lastLoginAt).toLocaleString('th-TH') : "-"}
                                         readOnly
-                                        className="w-full pl-10 pr-4 py-2.5 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-medium text-slate-400 cursor-not-allowed"
+                                        className="w-full pl-10 pr-4 py-2.5 bg-surface-2 border border-line rounded-xl text-sm font-medium text-slate-400 cursor-not-allowed"
                                     />
                                 </div>
                             </div>
@@ -205,7 +197,7 @@ export default function ProfilePage() {
                     </div>
 
                     {/* Password change toggle */}
-                    <div className="pt-4 border-t border-slate-100 dark:border-slate-800">
+                    <div className="pt-4 border-t border-line">
                         <label className="flex items-center gap-2 cursor-pointer mb-4">
                             <input 
                                 type="checkbox" 
@@ -213,18 +205,18 @@ export default function ProfilePage() {
                                 onChange={(e) => setIsChangePassword(e.target.checked)}
                                 className="rounded border-slate-300 text-sky-500 focus:ring-sky-500"
                             />
-                            <span className="text-sm font-bold text-slate-700 dark:text-slate-300">เปลี่ยนรหัสผ่าน</span>
+                            <span className="text-sm font-bold text-fg-2">เปลี่ยนรหัสผ่าน</span>
                         </label>
                         
                         {isChangePassword && (
-                            <div className="space-y-4 bg-slate-50 dark:bg-slate-900/50 p-6 rounded-2xl border border-slate-200 dark:border-slate-800">
+                            <div className="space-y-4 bg-surface-2 p-6 rounded-2xl border border-line">
                                 <div>
                                     <label className="block text-xs font-bold text-slate-500 mb-1.5">รหัสผ่านปัจจุบัน</label>
                                     <input
                                         type="password"
                                         value={currentPassword}
                                         onChange={(e) => setCurrentPassword(e.target.value)}
-                                        className="w-full px-4 py-2.5 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-xl text-sm outline-none focus:ring-2 focus:ring-sky-500/50"
+                                        className="field"
                                         placeholder="••••••••"
                                     />
                                 </div>
@@ -235,7 +227,7 @@ export default function ProfilePage() {
                                             type="password"
                                             value={newPassword}
                                             onChange={(e) => setNewPassword(e.target.value)}
-                                            className="w-full px-4 py-2.5 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-xl text-sm outline-none focus:ring-2 focus:ring-sky-500/50"
+                                            className="field"
                                             placeholder="••••••••"
                                         />
                                     </div>
@@ -245,7 +237,7 @@ export default function ProfilePage() {
                                             type="password"
                                             value={confirmPassword}
                                             onChange={(e) => setConfirmPassword(e.target.value)}
-                                            className="w-full px-4 py-2.5 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-xl text-sm outline-none focus:ring-2 focus:ring-sky-500/50"
+                                            className="field"
                                             placeholder="••••••••"
                                         />
                                     </div>
@@ -256,7 +248,7 @@ export default function ProfilePage() {
                 </div>
 
                 {/* Save Button */}
-                <div className="px-6 py-4 bg-slate-50 dark:bg-slate-900 border-t border-slate-100 dark:border-slate-800">
+                <div className="px-6 py-4 bg-surface-2 border-t border-line">
                     <button
                         onClick={handleSave}
                         disabled={saving}

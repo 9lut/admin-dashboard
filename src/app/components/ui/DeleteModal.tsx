@@ -1,7 +1,7 @@
 "use client";
 
-import { Trash2, Loader2, X } from "lucide-react";
-import { Button } from "@/app/components/ui/button";
+import { useEffect } from "react";
+import { Loader2, Trash2, X } from "lucide-react";
 
 interface DeleteModalProps {
     isOpen: boolean;
@@ -13,6 +13,8 @@ interface DeleteModalProps {
     isDeleting: boolean;
     confirmText?: string;
     cancelText?: string;
+    /** ลบแบบย้ายไปถังขยะ (กู้คืนได้ 30 วัน) */
+    recoverable?: boolean;
 }
 
 export default function DeleteModal({
@@ -24,67 +26,61 @@ export default function DeleteModal({
     itemName,
     isDeleting,
     confirmText = "ยืนยันลบ",
-    cancelText = "ยกเลิก"
+    cancelText = "ยกเลิก",
+    recoverable = false,
 }: DeleteModalProps) {
+    useEffect(() => {
+        if (!isOpen) return;
+        const esc = (e: KeyboardEvent) => e.key === "Escape" && !isDeleting && onClose();
+        window.addEventListener("keydown", esc);
+        return () => window.removeEventListener("keydown", esc);
+    }, [isOpen, isDeleting, onClose]);
+
     if (!isOpen) return null;
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6" role="dialog" aria-modal="true">
-            {/* Backdrop */}
-            <div
-                className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity"
-                aria-hidden="true"
-                onClick={isDeleting ? undefined : onClose}
-            />
+        <div className="fixed inset-0 z-[80] flex items-center justify-center p-4" role="alertdialog" aria-modal="true" aria-labelledby="delete-title">
+            <div className="fixed inset-0 bg-slate-950/50 backdrop-blur-sm" aria-hidden="true" onClick={isDeleting ? undefined : onClose} />
 
-            {/* Modal Content */}
-            <div className="relative bg-white dark:bg-slate-950 rounded-2xl shadow-xl w-full max-w-sm overflow-hidden border border-slate-100 dark:border-slate-800 transform transition-all scale-100 opacity-100">
-                <button
-                    onClick={onClose}
-                    disabled={isDeleting}
-                    className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300 transition-colors disabled:opacity-50"
-                >
-                    <X size={20} />
+            <div className="animate-in relative w-full max-w-sm overflow-hidden rounded-3xl border border-line bg-surface shadow-pop">
+                <button type="button" aria-label="ปิด" onClick={onClose} disabled={isDeleting} className="absolute top-4 right-4 grid size-8 place-items-center rounded-full text-muted transition-colors hover:bg-surface-2 hover:text-fg disabled:opacity-50">
+                    <X size={18} />
                 </button>
 
                 <div className="p-6 text-center">
-                    <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-rose-100 dark:bg-rose-900/30 mb-6">
-                        <Trash2 className="h-8 w-8 text-rose-600 dark:text-rose-500" />
+                    <div className="mx-auto mb-5 grid size-16 place-items-center rounded-3xl bg-negative-soft">
+                        <Trash2 className="size-7 text-negative" />
                     </div>
-
-                    <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-2">
-                        {title}
-                    </h3>
-
-                    <p className="text-sm text-slate-500 dark:text-slate-400 mb-6 leading-relaxed">
-                        {description} <br />
-                        {itemName && <span className="font-semibold text-slate-700 dark:text-slate-300">"{itemName}"</span>}
-                        {itemName && <><br />การกระทำนี้ไม่สามารถย้อนกลับได้</>}
+                    <h3 id="delete-title" className="mb-2 text-lg font-bold text-fg">{title}</h3>
+                    <p className="mb-6 text-sm leading-relaxed text-muted">
+                        {description}
+                        {itemName && (
+                            <>
+                                <br />
+                                <span className="font-semibold text-fg">&ldquo;{itemName}&rdquo;</span>
+                                {!recoverable && (
+                                    <>
+                                        <br />
+                                        การกระทำนี้ไม่สามารถย้อนกลับได้
+                                    </>
+                                )}
+                            </>
+                        )}
+                        {recoverable && <span className="mt-2 block rounded-xl bg-surface-2 px-3 py-2 text-xs">ย้ายไปถังขยะ — กู้คืนได้ภายใน 30 วัน</span>}
                     </p>
-
                     <div className="grid grid-cols-2 gap-3">
-                        <Button
-                            variant="outline"
-                            onClick={onClose}
-                            disabled={isDeleting}
-                            className="w-full rounded-xl border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold"
-                        >
+                        <button type="button" onClick={onClose} disabled={isDeleting} className="btn-secondary">
                             {cancelText}
-                        </Button>
-                        <Button
-                            onClick={onConfirm}
-                            disabled={isDeleting}
-                            className="w-full rounded-xl bg-rose-500 hover:bg-rose-600 text-white font-bold shadow-lg shadow-rose-500/20"
-                        >
+                        </button>
+                        <button type="button" onClick={onConfirm} disabled={isDeleting} className="btn bg-negative text-white shadow-[0_8px_20px_rgba(220,38,38,0.22)] hover:opacity-90">
                             {isDeleting ? (
                                 <>
-                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                    กำลังลบ...
+                                    <Loader2 className="size-4 animate-spin" /> กำลังลบ…
                                 </>
                             ) : (
-                                confirmText
+                                recoverable && confirmText === "ยืนยันลบ" ? "ย้ายไปถังขยะ" : confirmText
                             )}
-                        </Button>
+                        </button>
                     </div>
                 </div>
             </div>

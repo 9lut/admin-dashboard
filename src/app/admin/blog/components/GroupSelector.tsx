@@ -68,9 +68,9 @@ export default function GroupSelector({ groups, value, onChange, onGroupCreated,
             {/* Display Button */}
             <div
                 onClick={() => !disabled && setIsOpen(!isOpen)}
-                className={`w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-sky-500 text-sm flex items-center justify-between cursor-pointer ${disabled ? "opacity-50 cursor-not-allowed" : ""}`}
+                className={`w-full px-3 py-2 bg-surface-2 border border-line rounded-xl outline-none focus:ring-2 focus:ring-sky-500 text-sm flex items-center justify-between cursor-pointer ${disabled ? "opacity-50 cursor-not-allowed" : ""}`}
             >
-                <span className={selectedGroup ? "text-slate-900 dark:text-white" : "text-slate-400"}>
+                <span className={selectedGroup ? "text-fg" : "text-slate-400"}>
                     {selectedGroup ? selectedGroup.name : "เลือกหมวดหมู่..."}
                 </span>
                 <ChevronDown size={16} className={`text-slate-400 transition-transform ${isOpen ? "rotate-180" : ""}`} />
@@ -78,10 +78,10 @@ export default function GroupSelector({ groups, value, onChange, onGroupCreated,
 
             {/* Dropdown Menu */}
             {isOpen && (
-                <div className="absolute z-50 w-full mt-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-xl max-h-60 overflow-hidden flex flex-col">
+                <div className="absolute z-50 w-full mt-1 bg-surface border border-line rounded-xl shadow-xl max-h-60 overflow-hidden flex flex-col">
 
                     {/* Search Input */}
-                    <div className="p-2 border-b border-slate-100 dark:border-slate-800 sticky top-0 bg-white dark:bg-slate-900">
+                    <div className="p-2 border-b border-line sticky top-0 bg-surface">
                         <div className="relative">
                             <Search size={14} className="absolute left-2 top-1/2 -translate-y-1/2 text-slate-400" />
                             <input
@@ -89,7 +89,7 @@ export default function GroupSelector({ groups, value, onChange, onGroupCreated,
                                 value={searchTerm}
                                 onChange={(e) => setSearchTerm(e.target.value)}
                                 placeholder="ค้นหาหรือสร้างใหม่..."
-                                className="w-full pl-8 pr-2 py-1.5 text-sm bg-slate-50 dark:bg-slate-800 rounded-lg outline-none focus:ring-1 focus:ring-sky-500 text-slate-900 dark:text-white placeholder:text-slate-400"
+                                className="w-full pl-8 pr-2 py-1.5 text-sm bg-surface-2 rounded-lg outline-none focus:ring-1 focus:ring-sky-500 text-fg placeholder:text-slate-400"
                                 autoFocus
                             />
                             {searchTerm && (
@@ -116,7 +116,7 @@ export default function GroupSelector({ groups, value, onChange, onGroupCreated,
                                             setIsOpen(false);
                                             setSearchTerm("");
                                         }}
-                                        className={`flex items-center justify-between px-3 py-2 rounded-lg text-sm cursor-pointer transition-colors ${isSelected ? "bg-sky-50 dark:bg-sky-900/30 text-sky-600 dark:text-sky-400" : "text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800"}`}
+                                        className={`flex items-center justify-between px-3 py-2 rounded-lg text-sm cursor-pointer transition-colors ${isSelected ? "bg-sky-50 dark:bg-sky-900/30 text-sky-600 dark:text-sky-400" : "text-fg-2 hover:bg-surface-2"}`}
                                     >
                                         <span>{group.name}</span>
                                         {isSelected && <Check size={14} />}
@@ -131,7 +131,7 @@ export default function GroupSelector({ groups, value, onChange, onGroupCreated,
                         {searchTerm && !exactMatch && (
                             <div
                                 onClick={handleCreateGroup}
-                                className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm cursor-pointer text-sky-600 dark:text-sky-400 hover:bg-sky-50 dark:hover:bg-sky-900/20 mt-1 border-t border-slate-100 dark:border-slate-800 pt-2"
+                                className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm cursor-pointer text-sky-600 dark:text-sky-400 hover:bg-sky-50 dark:hover:bg-sky-900/20 mt-1 border-t border-line pt-2"
                             >
                                 {isCreating ? <Loader2 size={14} className="animate-spin" /> : <Plus size={14} />}
                                 <span>สร้างหมวดหมู่ใหม่ <strong>"{searchTerm}"</strong></span>
